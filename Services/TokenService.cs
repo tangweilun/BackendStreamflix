@@ -21,7 +21,8 @@ namespace Streamflix.Services
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email), 
-            new Claim(ClaimTypes.Name, user.UserName)
+            new Claim(ClaimTypes.Name, user.UserName),
+              new Claim(ClaimTypes.Role, user.IsAdmin ? "Admin" : "User") // Adding the IsAdmin claim
         };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:SecretKey"]));

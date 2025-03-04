@@ -43,7 +43,8 @@ namespace Streamflix.Controllers
                 Email = registerDto.Email,
                 PasswordHash = passwordHash,
                 DateOfBirth = registerDto.DateOfBirth,
-                PhoneNumber = registerDto.PhoneNumber
+                PhoneNumber = registerDto.PhoneNumber,
+                  IsAdmin = false
             };
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -52,7 +53,8 @@ namespace Streamflix.Controllers
             {
                 Token = token,
                 UserName = user.UserName,
-                Email = user.Email
+                Email = user.Email,
+                 IsAdmin = user.IsAdmin
             };
         }
 
@@ -74,7 +76,8 @@ namespace Streamflix.Controllers
             {
                 Token = token,
                 UserName = user.UserName,
-                Email = user.Email
+                Email = user.Email,
+                 IsAdmin = user.IsAdmin
             };
         }
 
