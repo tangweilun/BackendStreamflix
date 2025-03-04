@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Streamflix.Data;
+using Streamflix.Middleware;
 using Streamflix.Services;
 using System.Text;
 
@@ -133,7 +134,7 @@ app.UseHttpsRedirection();
 app.UseCors("AllowSpecificOrigin");  // Add this before app.UseAuthorization()
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseMiddleware<AdminMiddleware>();
 app.MapControllers();
 
 app.Run();

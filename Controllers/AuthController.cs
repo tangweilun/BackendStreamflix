@@ -10,7 +10,7 @@ using Streamflix.Model.Streamflix.Model;
 namespace Streamflix.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/auth")]
     public class AuthController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
