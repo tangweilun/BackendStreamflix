@@ -7,6 +7,8 @@ using Stripe.Checkout;
 
 namespace Streamflix.Controllers
 {
+    //[ApiController]
+    //[Route("api/payment")]
     public class PaymentController : Controller
     {
         private readonly StripeSettings _stripeSettings;
