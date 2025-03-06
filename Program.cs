@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Streamflix.Data;
 using Streamflix.Model;
+using Streamflix.Middleware;
 using Streamflix.Services;
 using System.Text;
 
@@ -15,6 +16,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowSpecificOrigin",
         policy => policy.WithOrigins("http://localhost:3000")  // Allow Next.js frontend
                         .AllowAnyMethod()
+                        .AllowCredentials() // Allow cookies
                         .AllowAnyHeader());
 });
 
@@ -38,15 +40,57 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
                 builder.Configuration["JWT:SecretKey"])),
-            ValidateIssuer = true,
-            ValidateAudience = true,
+            ValidateIssuer = false,
+            ValidateAudience = false,   
+            //ValidIssuer = builder.Configuration["JWT:Issuer"],
+            //ValidAudience = builder.Configuration["JWT:Audience"],
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
+
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                Console.WriteLine(" Debugging JWT Authentication");
+
+                if (context.Request.Cookies.ContainsKey("authToken"))
+                {
+                    string token = context.Request.Cookies["authToken"];
+                    Console.WriteLine(" authToken Found: " + token);
+                    context.Token = token;
+                }
+                else
+                {
+                    Console.WriteLine("authToken NOT Found");
+                    Console.WriteLine(" Available Cookies:");
+
+                    foreach (var cookie in context.Request.Cookies)
+                    {
+                        Console.WriteLine($" - {cookie.Key}: {cookie.Value}");
+                    }
+
+                    Console.WriteLine(" Request Headers:");
+                    foreach (var header in context.Request.Headers)
+                    {
+                        Console.WriteLine($" {header.Key}: {header.Value}");
+                    }
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+
     });
 
 
+// Register HttpClient
+builder.Services.AddHttpClient();
 
+// Register EmailService
+builder.Services.AddScoped<EmailService>();
+builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -93,12 +137,13 @@ if (app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+
 app.UseHttpsRedirection();
 // Enable CORS
 app.UseCors("AllowSpecificOrigin");  // Add this before app.UseAuthorization()
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseMiddleware<AdminMiddleware>();
 app.MapControllers();
 
 app.MapControllerRoute(
