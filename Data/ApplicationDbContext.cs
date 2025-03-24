@@ -13,6 +13,7 @@ namespace Streamflix.Data
 
         public DbSet<User> Users { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
