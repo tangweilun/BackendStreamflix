@@ -6,6 +6,10 @@ using Streamflix.Data;
 using Streamflix.Middleware;
 using Streamflix.Services;
 using System.Text;
+using Amazon;
+using Amazon.S3;
+using Amazon.Runtime;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 // Add CORS configuration
@@ -83,6 +87,38 @@ builder.Services.AddHttpClient();
 
 // Register EmailService
 builder.Services.AddScoped<EmailService>();
+// AWS S3 Configuration
+var awsOptions = builder.Configuration.GetSection("AWS");
+var awsAccessKey = awsOptions["AccessKey"];
+var awsSecretKey = awsOptions["SecretKey"];
+var awsSessionToken = awsOptions["SessionToken"];
+var awsRegion = awsOptions["Region"];
+
+var credentials = new SessionAWSCredentials(awsAccessKey, awsSecretKey, awsSessionToken);
+var s3Client = new AmazonS3Client(credentials, RegionEndpoint.GetBySystemName(awsRegion));
+
+// Add AWS services to DI container
+builder.Services.AddSingleton<IAmazonS3>(s3Client);
+
+// Increase file upload size limit (1GB)
+const long MaxFileSize = 1L * 1024 * 1024 * 1024; // 1GB
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = MaxFileSize;
+});
+
+// Increase max request size for Kestrel
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Limits.MaxRequestBodySize = MaxFileSize;
+});
+
+// If using IIS, ensure it allows large requests
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = MaxFileSize;
+});
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
