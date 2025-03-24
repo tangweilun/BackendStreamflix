@@ -12,8 +12,8 @@ using Streamflix.Data;
 namespace Streamflix.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250320075610_SubscriptionPlan")]
-    partial class SubscriptionPlan
+    [Migration("20250324103903_AddUserSubscriptionsTable")]
+    partial class AddUserSubscriptionsTable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -58,7 +58,7 @@ namespace Streamflix.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("IsAdmin")
+                    b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
                     b.Property<int>("MaxStreams")
@@ -66,14 +66,16 @@ namespace Streamflix.Migrations
 
                     b.Property<string>("PlanName")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
-                    b.Property<double>("Price")
-                        .HasColumnType("double precision");
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("Quality")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.HasKey("Id");
 
@@ -115,6 +117,43 @@ namespace Streamflix.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Streamflix.Model.UserSubscription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("PlanId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserSubscription");
+                });
+
             modelBuilder.Entity("Streamflix.Model.Streamflix.Model.PasswordResetToken", b =>
                 {
                     b.HasOne("Streamflix.Model.User", "User")
@@ -124,6 +163,30 @@ namespace Streamflix.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.UserSubscription", b =>
+                {
+                    b.HasOne("Streamflix.Model.SubscriptionPlan", "SubscriptionPlan")
+                        .WithMany("UserSubscriptions")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Streamflix.Model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SubscriptionPlan");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.SubscriptionPlan", b =>
+                {
+                    b.Navigation("UserSubscriptions");
                 });
 #pragma warning restore 612, 618
         }

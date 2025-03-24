@@ -7,17 +7,20 @@ namespace Streamflix.Model
         [Key]
         public int Id { get; set; }
 
-        [Required]
-        public string? PlanName { get; set; }
+        [Required, MaxLength(100)]
+        public string PlanName { get; set; }
 
         [Required]
-        public double Price { get; set; }
+        public decimal Price { get; set; }
+
+        [Required, MaxLength(50)]
+        public string Quality { get; set; }
 
         [Required]
-        public string? Quality { get; set; }
-
         public int MaxStreams { get; set; }
 
-        public bool IsAdmin { get; set; } = true;
+        public bool IsActive { get; set; } = true;
+
+        public ICollection<UserSubscription> UserSubscriptions { get; set; }
     }
 }

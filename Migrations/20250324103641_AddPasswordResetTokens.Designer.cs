@@ -12,7 +12,7 @@ using Streamflix.Data;
 namespace Streamflix.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250227064038_AddPasswordResetTokens")]
+    [Migration("20250324103641_AddPasswordResetTokens")]
     partial class AddPasswordResetTokens
     {
         /// <inheritdoc />
@@ -64,6 +64,9 @@ namespace Streamflix.Migrations
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("IsAdmin")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
