@@ -6,11 +6,13 @@ using Streamflix.Model;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Cors;
 
 namespace Streamflix.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [EnableCors("AllowSpecificOrigin")]
     public class FilesController : ControllerBase
     {
         private readonly IAmazonS3 _s3Client;
@@ -21,6 +23,7 @@ namespace Streamflix.Controllers
 
         // Function 1: Create a Show (Folder)
         [HttpPost("create-show")]
+        [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> CreateShowAsync(string bucketName, string showId, IFormFile? thumbnail)
         {
             var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
@@ -61,6 +64,7 @@ namespace Streamflix.Controllers
         }
         // Function to get show details including thumbnail URL
         [HttpGet("get-show-thumbnail")]
+        [EnableCors("AllowSpecificOrigin")]
         public IActionResult GetShowThumbnail(string bucketName, string showId)
         {
             string[] possibleExtensions = { ".jpg", ".jpeg", ".png" };
@@ -92,6 +96,7 @@ namespace Streamflix.Controllers
 
         // Function 2: Upload an Episode to a Show
         [HttpPost("upload-episode")]
+        [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> UploadEpisodeAsync(string bucketName, string showId, int episodeNumber, IFormFile file)
         {
             var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
@@ -171,6 +176,8 @@ namespace Streamflix.Controllers
 
         //Existing Function: Preview File
         [HttpGet("preview")]
+        [EnableCors("AllowSpecificOrigin")]
+
         public async Task<IActionResult> GetFileByKeyAsync(string bucketName, string key)
         {
             var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
