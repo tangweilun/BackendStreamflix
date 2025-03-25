@@ -22,7 +22,7 @@ builder.Services.AddCors(options =>
 
 // Add services to the container.
 builder.Services.AddControllers();
-builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("StripeSettings"));
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
 
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
