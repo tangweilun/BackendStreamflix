@@ -17,6 +17,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
         policy => policy.WithOrigins("http://localhost:3000")  // Allow Next.js frontend
+                        .SetIsOriginAllowed(_ => true)  // Allows dynamic origins if needed
                         .AllowAnyMethod()
                         .AllowCredentials() // Allow cookies
                         .AllowAnyHeader());
