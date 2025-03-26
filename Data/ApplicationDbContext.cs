@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Streamflix.Model;
 using Streamflix.Model.Streamflix.Model;
+using System.Text.Json;
 
 namespace Streamflix.Data
 {
@@ -38,6 +39,10 @@ namespace Streamflix.Data
 
             modelBuilder.Entity<ContentCast>()
                 .HasKey(cc => new { cc.ContentId, cc.ActorId }); // Composite Key
+
+            modelBuilder.Entity<SubscriptionPlan>()
+                .Property(e => e.FeaturesJson)
+                .HasColumnType("jsonb");
         }
     }
 }

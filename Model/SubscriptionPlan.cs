@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Newtonsoft.Json;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Streamflix.Model
 {
@@ -7,13 +9,16 @@ namespace Streamflix.Model
         [Key]
         public int Id { get; set; }
 
-        [Required, MaxLength(100)]
+        [Required]
         public string PlanName { get; set; }
 
         [Required]
         public decimal Price { get; set; }
 
-        [Required, MaxLength(50)]
+        [Required]
+        public string FeaturesJson { get; set; }
+
+        [Required]
         public string Quality { get; set; }
 
         [Required]

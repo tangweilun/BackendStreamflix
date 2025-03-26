@@ -16,7 +16,7 @@ namespace Streamflix.Controllers
         }
 
         // Fetch all users
-        [HttpGet("fetchAllUsers")]
+        [HttpGet("fetch-all-users")]
         public async Task<IActionResult> GetAllUsers()
         {
             var users = await _context.Users.ToListAsync();
@@ -24,7 +24,7 @@ namespace Streamflix.Controllers
         }
 
         // Change user role (set isAdmin to true/false)
-        [HttpPut("updateUserRole/{id}")]
+        [HttpPut("update-user-role/{id}")]
         public async Task<IActionResult> ChangeUserRole(int id, [FromBody] bool isAdmin)
         {
             var user = await _context.Users.FindAsync(id);
@@ -40,7 +40,7 @@ namespace Streamflix.Controllers
         }
 
         // Delete a user
-        [HttpDelete("deleteUser/{id}")]
+        [HttpDelete("delete-user/{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
