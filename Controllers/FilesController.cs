@@ -7,6 +7,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Cors;
+using Microsoft.EntityFrameworkCore;
 
 namespace Streamflix.Controllers
 {
@@ -152,18 +153,17 @@ namespace Streamflix.Controllers
 
 
 
-        // Function 2: Upload an Episode to a Show
         [HttpPost("upload-episode")]
         [EnableCors("AllowSpecificOrigin")]
-        public async Task<IActionResult> UploadEpisodeAsync(string bucketName, string showId, int episodeNumber, IFormFile file)
+        public async Task<IActionResult> UploadEpisodeAsync(
+    [FromForm] string bucketName,
+    [FromForm] string showTitle, // Receive showTitle instead of showId
+    [FromForm] int episodeNumber,
+    [FromForm] IFormFile file)
         {
-            var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
-            if (!bucketExists) return NotFound($"Bucket {bucketName} does not exist.");
-            if (file == null || file.Length == 0) return BadRequest("Invalid file.");
-
-            // Extract the original file extension
+            // 🏷️ Create Correct S3 Path
             string fileExtension = Path.GetExtension(file.FileName);
-            string key = $"shows/{showId}/episodes/{episodeNumber}{fileExtension}";
+            string key = $"shows/{showTitle}/episodes/{episodeNumber}{fileExtension}";
 
             using var stream = file.OpenReadStream();
             var request = new PutObjectRequest
@@ -175,8 +175,11 @@ namespace Streamflix.Controllers
             };
 
             await _s3Client.PutObjectAsync(request);
-            return Ok($"Episode {episodeNumber} uploaded successfully to Show '{showId}' as {key}!");
+            return Ok($"Episode {episodeNumber} uploaded successfully to Show '{showTitle}' as {key}!");
         }
+
+
+
 
 
         // Existing Function: Upload any File
