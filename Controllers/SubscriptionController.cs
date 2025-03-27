@@ -1,4 +1,5 @@
 ﻿using Humanizer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -7,6 +8,7 @@ using Streamflix.DTOs;
 using Streamflix.Model;
 using Stripe;
 using Stripe.Checkout;
+using System.Security.Claims;
 
 namespace Streamflix.Controllers
 {
@@ -28,12 +30,39 @@ namespace Streamflix.Controllers
         [HttpGet("get-all-plans")]
         public async Task<IActionResult> GetAllPlans()
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+
             var plans = await _context.SubscriptionPlans
                 .Where(plan => plan.IsActive)
                 .OrderBy(plan => plan.Id)
                 .ToListAsync();
 
             return Ok(plans);
+        }
+
+        [HttpGet("get-subscribed-plan")]
+        public async Task<IActionResult> GetSubscribedPlan()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var isAuthenticated = User.Identity?.IsAuthenticated;
+            var claims = User.Claims.Select(c => new { c.Type, c.Value });
+
+            if (!int.TryParse(userId, out int uId))
+            {
+                return Unauthorized("Invalid user ID.");
+            }
+
+            var subscribedPlan = await _context.UserSubscription
+                .Where(us => us.UserId == uId && us.IsActive)
+                .FirstOrDefaultAsync();
+
+            if (subscribedPlan == null)
+            {
+                return NotFound("Current user is not subscribing to any plan.");
+            }
+
+            return Ok(subscribedPlan);
         }
 
         [HttpPost("subscribe")]
@@ -70,7 +99,7 @@ namespace Streamflix.Controllers
                 SuccessUrl = "http://localhost:3000/subscription",
                 CancelUrl = "http://localhost:3000",
 
-                // Pass metadata to later identify particular user and plan in webhook to create UserSubscription
+                // Pass metadata to later identify selected plan in webhook to create UserSubscription
                 Metadata = new Dictionary<string, string>
                 {
                     { "UserId", subscriptionDto.UserId.ToString() },

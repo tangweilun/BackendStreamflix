@@ -53,7 +53,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
-                Console.WriteLine(" Debugging JWT Authentication");
+                Console.WriteLine("Debugging JWT Authentication");
 
                 if (context.Request.Cookies.ContainsKey("authToken"))
                 {
