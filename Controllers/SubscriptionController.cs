@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Humanizer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Streamflix.Data;
+using Streamflix.DTOs;
 using Streamflix.Model;
 using Stripe;
 using Stripe.Checkout;
@@ -34,10 +36,17 @@ namespace Streamflix.Controllers
             return Ok(plans);
         }
 
-        [HttpPost("pay")]
-        public IActionResult Pay([FromBody] string price)
+        [HttpPost("subscribe")]
+        public async Task<IActionResult> Pay([FromBody] UserSubscriptionDto subscriptionDto)
         {
             StripeConfiguration.ApiKey = _stripeSettings.SecretKey;
+
+            var plan = await _context.SubscriptionPlans.FirstOrDefaultAsync(p => p.Id == subscriptionDto.PlanId);
+
+            if (plan == null)
+            {
+                return NotFound("Subscription plan not found.");
+            }
 
             var options = new SessionCreateOptions // Create checkout session
             {
@@ -45,13 +54,28 @@ namespace Streamflix.Controllers
                 {
                     new SessionLineItemOptions
                     {
-                        Price = price,
+                        PriceData = new SessionLineItemPriceDataOptions
+                        {
+                            Currency = "myr",
+                            UnitAmount = Convert.ToInt32(plan.Price) * 100,
+                            ProductData = new SessionLineItemPriceDataProductDataOptions
+                            {
+                                Name = plan.PlanName
+                            }
+                        },
                         Quantity = 1,
                     }
                 },
                 Mode = "payment",
                 SuccessUrl = "http://localhost:3000/subscription",
-                CancelUrl = "http://localhost:3000"
+                CancelUrl = "http://localhost:3000",
+
+                // Pass metadata to later identify particular user and plan in webhook to create UserSubscription
+                Metadata = new Dictionary<string, string>
+                {
+                    { "UserId", subscriptionDto.UserId.ToString() },
+                    { "PlanId", subscriptionDto.PlanId.ToString() }
+                }
             };
 
             var service = new SessionService();
@@ -61,22 +85,75 @@ namespace Streamflix.Controllers
             return Ok(session.Url);
         }
 
-        //[HttpPost("create-customer")]
-        //public async Task<dynamic> CreateCustomer([FromBody] User userInfo)
-        //{
-        //    StripeConfiguration.ApiKey = _stripeSettings.SecretKey;
+        // Trigger order fulfillment after payment to create UserSubscription
+        [HttpPost("webhook")]
+        public async Task<IActionResult> StripeWebhook()
+        {
+            var json = await new StreamReader(HttpContext.Request.Body).ReadToEndAsync();
 
-        //    var userOptions = new CustomerCreateOptions
+            try
+            {
+                // Verify the webhook signature using the secret from
+                var stripeEvent = EventUtility.ConstructEvent(
+                    json,
+                    Request.Headers["Stripe-Signature"],
+                    _stripeSettings.WebhookSecret
+                );
+
+                if (stripeEvent.Type == EventTypes.CheckoutSessionCompleted ||
+                    stripeEvent.Type == EventTypes.CheckoutSessionAsyncPaymentSucceeded)
+                {
+                    var session = stripeEvent.Data.Object as Session;
+
+                    if (session != null)
+                    {
+                        // Retrieve metadata set in the checkout session
+                        string userId = session.Metadata.ContainsKey("UserId") ? session.Metadata["UserId"] : null;
+                        string planId = session.Metadata.ContainsKey("PlanId") ? session.Metadata["PlanId"] : null;
+
+                        if (int.TryParse(userId, out int uId) && int.TryParse(planId, out int pId))
+                        {
+                            var userSubscription = new UserSubscription
+                            {
+                                UserId = uId,
+                                PlanId = pId,
+                                StartDate = DateTime.UtcNow,
+                                EndDate = DateTime.UtcNow.AddMonths(1)
+                            };
+
+                            _context.UserSubscription.Add(userSubscription);
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+                }
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        //[HttpPost("subscribe")]
+        //public async Task<IActionResult> Subscribe([FromBody] UserSubscriptionDto subscriptionDto)
+        //{
+        //    if (subscriptionDto == null)
+        //        return BadRequest("Invalid subscription data.");
+
+        //    var userSubscription = new UserSubscription
         //    {
-        //        Email = userInfo.Email,
-        //        Name = userInfo.UserName
+        //        UserId = subscriptionDto.UserId,
+        //        PlanId = subscriptionDto.PlanId,
+        //        StartDate = subscriptionDto.StartDate,
+        //        EndDate = subscriptionDto.EndDate,
+        //        IsActive = subscriptionDto.IsActive,
         //    };
 
-        //    var user = await _customerService.CreateAsync(userOptions);
+        //    _context.UserSubscription.Add(userSubscription);
+        //    await _context.SaveChangesAsync();
 
-        //    // Create users object in the application database
-
-        //    return new { user };
+        //    return Ok(userSubscription);
         //}
     }
 }

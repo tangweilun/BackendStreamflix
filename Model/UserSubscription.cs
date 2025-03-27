@@ -22,9 +22,6 @@ namespace Streamflix.Model
 
         public bool IsActive { get; set; } = true;
 
-        [Required, MaxLength(50)]
-        public string PaymentStatus { get; set; }
-
         [ForeignKey("UserId")]
         public User User { get; set; }
 
