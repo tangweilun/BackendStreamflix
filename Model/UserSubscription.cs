@@ -1,8 +1,16 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using Stripe;
 
 namespace Streamflix.Model
 {
+    public enum SubscriptionStatus
+    {
+        Pending,
+        Ongoing,
+        Expired
+    }
+
     public class UserSubscription
     {
         [Key]
@@ -20,7 +28,8 @@ namespace Streamflix.Model
         [Required]
         public DateTime EndDate { get; set; }
 
-        public bool IsActive { get; set; } = true;
+        [Required]
+        public SubscriptionStatus Status { get; set; }
 
         [ForeignKey("UserId")]
         public User User { get; set; }

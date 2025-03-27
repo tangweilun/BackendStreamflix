@@ -43,6 +43,10 @@ namespace Streamflix.Data
             modelBuilder.Entity<SubscriptionPlan>()
                 .Property(e => e.FeaturesJson)
                 .HasColumnType("jsonb");
+
+            modelBuilder.Entity<UserSubscription>()
+                .Property(u => u.Status)
+                .HasConversion<string>();
         }
     }
 }

@@ -8,6 +8,7 @@ using Streamflix.DTOs;
 using Streamflix.Model;
 using Stripe;
 using Stripe.Checkout;
+using System;
 using System.Security.Claims;
 
 namespace Streamflix.Controllers
@@ -42,27 +43,21 @@ namespace Streamflix.Controllers
         }
 
         [HttpGet("get-subscribed-plan")]
+        [Authorize]
         public async Task<IActionResult> GetSubscribedPlan()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var isAuthenticated = User.Identity?.IsAuthenticated;
-            var claims = User.Claims.Select(c => new { c.Type, c.Value });
 
             if (!int.TryParse(userId, out int uId))
             {
                 return Unauthorized("Invalid user ID.");
             }
 
-            var subscribedPlan = await _context.UserSubscription
-                .Where(us => us.UserId == uId && us.IsActive)
+            var activeSubscription = await _context.UserSubscription
+                .Where(us => us.UserId == uId && us.Status == SubscriptionStatus.Ongoing)
                 .FirstOrDefaultAsync();
 
-            if (subscribedPlan == null)
-            {
-                return NotFound("Current user is not subscribing to any plan.");
-            }
-
-            return Ok(subscribedPlan);
+            return Ok(activeSubscription);
         }
 
         [HttpPost("subscribe")]
@@ -103,7 +98,7 @@ namespace Streamflix.Controllers
                 Metadata = new Dictionary<string, string>
                 {
                     { "UserId", subscriptionDto.UserId.ToString() },
-                    { "PlanId", subscriptionDto.PlanId.ToString() }
+                    { "NewPlanId", subscriptionDto.PlanId.ToString() }
                 }
             };
 
@@ -138,20 +133,78 @@ namespace Streamflix.Controllers
                     {
                         // Retrieve metadata set in the checkout session
                         string userId = session.Metadata.ContainsKey("UserId") ? session.Metadata["UserId"] : null;
-                        string planId = session.Metadata.ContainsKey("PlanId") ? session.Metadata["PlanId"] : null;
+                        string newPlanId = session.Metadata.ContainsKey("NewPlanId") ? session.Metadata["NewPlanId"] : null;
 
-                        if (int.TryParse(userId, out int uId) && int.TryParse(planId, out int pId))
+                        if (int.TryParse(userId, out int uId) && int.TryParse(newPlanId, out int newPId))
                         {
-                            var userSubscription = new UserSubscription
+                            // Check whether current user has active subscription
+                            var activeSubscription = await _context.UserSubscription
+                                .Where(us => us.UserId == uId && us.Status == SubscriptionStatus.Ongoing)
+                                .FirstOrDefaultAsync();
+                            
+                            if (activeSubscription != null) // If user wishes to change plan
                             {
-                                UserId = uId,
-                                PlanId = pId,
-                                StartDate = DateTime.UtcNow,
-                                EndDate = DateTime.UtcNow.AddMonths(1)
-                            };
+                                var subscribedPlan = await _context.SubscriptionPlans
+                                    .Where(p => p.Id == activeSubscription.PlanId && p.IsActive)
+                                    .FirstOrDefaultAsync();
 
-                            _context.UserSubscription.Add(userSubscription);
-                            await _context.SaveChangesAsync();
+                                var newPlan = await _context.SubscriptionPlans
+                                    .Where(p => p.Id == newPId && p.IsActive)
+                                    .FirstOrDefaultAsync();
+
+                                if (subscribedPlan != null && newPlan != null)
+                                {
+                                    if (subscribedPlan.Price > newPlan.Price) // If user wishes to downgrade plan
+                                    {
+                                        var userSubscription = new UserSubscription
+                                        {
+                                            UserId = uId,
+                                            PlanId = newPId,
+                                            StartDate = activeSubscription.EndDate, // Lower-priced plan will take effect on next billing date
+                                            EndDate = activeSubscription.EndDate.AddMonths(1),
+                                            Status = SubscriptionStatus.Pending,
+                                        };
+
+                                        _context.UserSubscription.Add(userSubscription);
+                                        await _context.SaveChangesAsync();
+                                    }
+                                    else // If user wishes to upgrade plan
+                                    {
+                                        DateTime dateTimeNow = DateTime.UtcNow;
+
+                                        activeSubscription.EndDate = dateTimeNow;
+                                        activeSubscription.Status = SubscriptionStatus.Expired;
+
+                                        var userSubscription = new UserSubscription
+                                        {
+                                            UserId = uId,
+                                            PlanId = newPId,
+                                            StartDate = dateTimeNow, // Higher-priced plan takes effect immediately
+                                            EndDate = dateTimeNow.AddMonths(1),
+                                            Status = SubscriptionStatus.Ongoing,
+                                        };
+
+                                        _context.UserSubscription.Add(userSubscription);
+                                        await _context.SaveChangesAsync();
+                                    }
+
+                                }
+
+                            }
+                            else
+                            {
+                                var userSubscription = new UserSubscription
+                                {
+                                    UserId = uId,
+                                    PlanId = newPId,
+                                    StartDate = DateTime.UtcNow,
+                                    EndDate = DateTime.UtcNow.AddMonths(1),
+                                    Status = SubscriptionStatus.Ongoing,
+                                };
+
+                                _context.UserSubscription.Add(userSubscription);
+                                await _context.SaveChangesAsync();
+                            }
                         }
                     }
                 }
