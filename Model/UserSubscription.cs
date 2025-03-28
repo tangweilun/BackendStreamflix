@@ -16,6 +16,10 @@ namespace Streamflix.Model
         [Key]
         public int Id { get; set; }
 
+        // Store subscription ID from Stripe for future reference
+        [Required]
+        public string StripeSubscriptionId { get; set; }
+
         [Required]
         public int UserId { get; set; }
 

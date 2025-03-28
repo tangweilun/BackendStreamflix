@@ -19,13 +19,11 @@ namespace Streamflix.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly StripeSettings _stripeSettings;
-        //private readonly CustomerService _customerService;
 
         public SubscriptionController(ApplicationDbContext context, IOptions<StripeSettings> stripeSettings)
         {
             _context = context;
             _stripeSettings = stripeSettings.Value;
-            //_customerService = customerService;
         }
 
         [HttpGet("get-all-plans")]
@@ -85,15 +83,18 @@ namespace Streamflix.Controllers
                             ProductData = new SessionLineItemPriceDataProductDataOptions
                             {
                                 Name = plan.PlanName
+                            },
+                            Recurring = new SessionLineItemPriceDataRecurringOptions
+                            {
+                                Interval = "month"
                             }
                         },
                         Quantity = 1,
                     }
                 },
-                Mode = "payment",
+                Mode = "subscription",
                 SuccessUrl = "http://localhost:3000/subscription",
                 CancelUrl = "http://localhost:3000",
-
                 // Pass metadata to later identify selected plan in webhook to create UserSubscription
                 Metadata = new Dictionary<string, string>
                 {
@@ -117,7 +118,6 @@ namespace Streamflix.Controllers
 
             try
             {
-                // Verify the webhook signature using the secret from
                 var stripeEvent = EventUtility.ConstructEvent(
                     json,
                     Request.Headers["Stripe-Signature"],
@@ -131,9 +131,31 @@ namespace Streamflix.Controllers
 
                     if (session != null)
                     {
+                        // Ensure Stripe subscription object is fully populated
+                        if (session.Subscription == null)
+                        {
+                            var sessionService = new SessionService();
+                            session = sessionService.Get(session.Id, new SessionGetOptions
+                            {
+                                Expand = new List<string> { "subscription" }
+                            });
+                        }
+
                         // Retrieve metadata set in the checkout session
-                        string userId = session.Metadata.ContainsKey("UserId") ? session.Metadata["UserId"] : null;
-                        string newPlanId = session.Metadata.ContainsKey("NewPlanId") ? session.Metadata["NewPlanId"] : null;
+                        string userId = session.Metadata.ContainsKey("UserId") ? session.Metadata["UserId"] : "";
+                        string newPlanId = session.Metadata.ContainsKey("NewPlanId") ? session.Metadata["NewPlanId"] : "";
+
+                        // Retrieve subscription ID created by the checkout session for recurring payment for subscription
+                        string stripeSubscriptionId = "";
+
+                        if (session.Subscription is Subscription subscriptionObj)
+                        {
+                            stripeSubscriptionId = subscriptionObj.Id;
+                        }
+                        else
+                        {
+                            throw new Exception("Could not retrieve a valid subscription ID from the session.");
+                        }
 
                         if (int.TryParse(userId, out int uId) && int.TryParse(newPlanId, out int newPId))
                         {
@@ -163,6 +185,7 @@ namespace Streamflix.Controllers
                                             StartDate = activeSubscription.EndDate, // Lower-priced plan will take effect on next billing date
                                             EndDate = activeSubscription.EndDate.AddMonths(1),
                                             Status = SubscriptionStatus.Pending,
+                                            StripeSubscriptionId = stripeSubscriptionId
                                         };
 
                                         _context.UserSubscription.Add(userSubscription);
@@ -182,6 +205,7 @@ namespace Streamflix.Controllers
                                             StartDate = dateTimeNow, // Higher-priced plan takes effect immediately
                                             EndDate = dateTimeNow.AddMonths(1),
                                             Status = SubscriptionStatus.Ongoing,
+                                            StripeSubscriptionId = stripeSubscriptionId
                                         };
 
                                         _context.UserSubscription.Add(userSubscription);
@@ -189,7 +213,6 @@ namespace Streamflix.Controllers
                                     }
 
                                 }
-
                             }
                             else
                             {
@@ -200,11 +223,40 @@ namespace Streamflix.Controllers
                                     StartDate = DateTime.UtcNow,
                                     EndDate = DateTime.UtcNow.AddMonths(1),
                                     Status = SubscriptionStatus.Ongoing,
+                                    StripeSubscriptionId = stripeSubscriptionId
                                 };
 
                                 _context.UserSubscription.Add(userSubscription);
                                 await _context.SaveChangesAsync();
                             }
+                        }
+                    }
+                }
+                else if (stripeEvent.Type == EventTypes.InvoicePaymentSucceeded) // Handle recurring payment for continous subscription
+                {
+                    var invoice = stripeEvent.Data.Object as Invoice;
+
+                    if (invoice != null)
+                    {
+                        var stripeSubscriptionId = invoice.SubscriptionId;
+
+                        // Allow grace period of 1 day
+                        var subscriptionsToExtend = await _context.UserSubscription
+                            .Where(us => us.StripeSubscriptionId == stripeSubscriptionId &&
+                                (us.Status == SubscriptionStatus.Ongoing ||
+                                (us.Status == SubscriptionStatus.Expired && DateTime.UtcNow - us.EndDate < TimeSpan.FromDays(1))) &&
+                                us.EndDate <= DateTime.UtcNow)
+                            .ToListAsync();
+
+                        if (subscriptionsToExtend.Any())
+                        {
+                            foreach (var subscription in subscriptionsToExtend)
+                            {
+                                subscription.EndDate = subscription.EndDate.AddMonths(1);
+                                subscription.Status = SubscriptionStatus.Ongoing;
+                            }
+
+                            await _context.SaveChangesAsync();
                         }
                     }
                 }
@@ -216,26 +268,5 @@ namespace Streamflix.Controllers
                 return BadRequest(ex.Message);
             }
         }
-
-        //[HttpPost("subscribe")]
-        //public async Task<IActionResult> Subscribe([FromBody] UserSubscriptionDto subscriptionDto)
-        //{
-        //    if (subscriptionDto == null)
-        //        return BadRequest("Invalid subscription data.");
-
-        //    var userSubscription = new UserSubscription
-        //    {
-        //        UserId = subscriptionDto.UserId,
-        //        PlanId = subscriptionDto.PlanId,
-        //        StartDate = subscriptionDto.StartDate,
-        //        EndDate = subscriptionDto.EndDate,
-        //        IsActive = subscriptionDto.IsActive,
-        //    };
-
-        //    _context.UserSubscription.Add(userSubscription);
-        //    await _context.SaveChangesAsync();
-
-        //    return Ok(userSubscription);
-        //}
     }
 }
