@@ -8,6 +8,7 @@ namespace Streamflix.Model
     {
         Pending,
         Ongoing,
+        Cancelled,
         Expired
     }
 

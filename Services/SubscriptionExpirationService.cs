@@ -28,7 +28,7 @@ namespace Streamflix.Services
                         var now = DateTime.UtcNow;
 
                         var subscriptionsToExpire = await dbContext.UserSubscription
-                            .Where(us => us.Status == Model.SubscriptionStatus.Ongoing && us.EndDate <= now)
+                            .Where(us => (us.Status == SubscriptionStatus.Ongoing || us.Status == SubscriptionStatus.Cancelled ) && us.EndDate <= now)
                             .ToListAsync(stoppingToken);
 
                         if (subscriptionsToExpire.Any())

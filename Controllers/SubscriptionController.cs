@@ -268,5 +268,60 @@ namespace Streamflix.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpPost("cancel-subscription")]
+        [Authorize]
+        public async Task<IActionResult> CancelSubscription([FromBody] UserSubscriptionDto subscriptionDto)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!int.TryParse(userId, out var uId) || uId != subscriptionDto.UserId)
+            {
+                return Unauthorized("You're not authorized to cancel this subscription.");
+            }
+
+            var subscriptionRecord = await _context.UserSubscription
+                .FirstOrDefaultAsync(us => us.UserId == subscriptionDto.UserId && us.PlanId == subscriptionDto.PlanId && us.Status == SubscriptionStatus.Ongoing);
+        
+            if (subscriptionRecord == null)
+            {
+                return NotFound("Subscription record not found.");
+            }
+
+            if (string.IsNullOrEmpty(subscriptionRecord.StripeSubscriptionId))
+            {
+                return BadRequest("Stripe subscription ID is missing for this subscription.");
+            }
+
+            // Cancel subscription in Stripe
+            StripeConfiguration.ApiKey = _stripeSettings.SecretKey;
+
+            var subscriptionService = new Stripe.SubscriptionService();
+
+            try
+            {
+                var cancelOptions = new SubscriptionCancelOptions
+                {
+                    InvoiceNow = false,
+                    Prorate = false
+                };
+
+                var stripeCancellation = subscriptionService.Cancel(subscriptionRecord.StripeSubscriptionId, cancelOptions);
+
+                subscriptionRecord.Status = SubscriptionStatus.Cancelled;
+
+                await _context.SaveChangesAsync();
+
+                return Ok("Subscription cancelled successfully");
+            }
+            catch (StripeException ex)
+            {
+                return BadRequest($"Stripe error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error cancelling subscription: {ex.Message}");
+            }
+        }
     }
 }
