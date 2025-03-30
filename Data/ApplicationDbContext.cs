@@ -22,6 +22,7 @@ namespace Streamflix.Data
         public DbSet<ContentGenre> ContentGenres { get; set; }
         public DbSet<Actor> Actors { get; set; }
         public DbSet<ContentCast> ContentCasts { get; set; }
+        public DbSet<WatchHistory> WatchHistory { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

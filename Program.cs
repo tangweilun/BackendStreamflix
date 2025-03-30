@@ -31,6 +31,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddHostedService<SubscriptionExpirationService>();
+builder.Services.AddSingleton<IWatchHistoryQueue, WatchProgressQueue>();
+builder.Services.AddHostedService<WatchProgressBackgroundService>();
 
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
