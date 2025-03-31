@@ -7,9 +7,9 @@ namespace Streamflix.Model
         [Key]
         public int Id { get; set; }
 
-        [Required, MaxLength(50)]
+        [Required]
         public string GenreName { get; set; }
 
-        public string Description { get; set; }
+        public ICollection<VideoGenre> VideoGenres { get; set; }
     }
 }

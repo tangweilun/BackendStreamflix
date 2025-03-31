@@ -12,16 +12,16 @@ namespace Streamflix.Model
         public int UserId { get; set; }
 
         [Required]
-        public int ContentId { get; set; }
+        public int VideoId { get; set; }
 
-        public int CurrentPosition { get; set; } = 0;
+        public int CurrentPosition { get; set; }
         
         public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
 
         [ForeignKey("UserId")]
         public User User { get; set; }
 
-        [ForeignKey("ContentId")]
-        public Content Content { get; set; }
+        [ForeignKey("VideoId")]
+        public Video Video { get; set; }
     }
 }

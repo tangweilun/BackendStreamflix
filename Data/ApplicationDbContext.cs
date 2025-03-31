@@ -16,13 +16,13 @@ namespace Streamflix.Data
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
         public DbSet<UserSubscription> UserSubscription { get; set; }
-        public DbSet<Content> Content { get; set; }
+        public DbSet<Video> Videos { get; set; }
         public DbSet<WatchList> WatchLists { get; set; }
-        public DbSet<Genre> Genres { get; set; }
-        public DbSet<ContentGenre> ContentGenres { get; set; }
-        public DbSet<Actor> Actors { get; set; }
-        public DbSet<ContentCast> ContentCasts { get; set; }
         public DbSet<WatchHistory> WatchHistory { get; set; }
+        public DbSet<Genre> Genres { get; set; }
+        public DbSet<VideoGenre> VideoGenres { get; set; }
+        public DbSet<Actor> Actors { get; set; }
+        public DbSet<VideoCast> VideoCasts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -35,11 +35,11 @@ namespace Streamflix.Data
                 .HasForeignKey(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<ContentGenre>()
-                .HasKey(cg => new { cg.ContentId, cg.GenreId }); // Composite Key
+            modelBuilder.Entity<VideoGenre>()
+                .HasKey(cg => new { cg.VideoId, cg.GenreId }); // Composite Key
 
-            modelBuilder.Entity<ContentCast>()
-                .HasKey(cc => new { cc.ContentId, cc.ActorId }); // Composite Key
+            modelBuilder.Entity<VideoCast>()
+                .HasKey(cc => new { cc.VideoId, cc.ActorId }); // Composite Key
 
             modelBuilder.Entity<SubscriptionPlan>()
                 .Property(e => e.FeaturesJson)

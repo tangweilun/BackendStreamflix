@@ -7,7 +7,7 @@ namespace Streamflix.Model
         [Key]
         public int Id { get; set; }
 
-        [Required, MaxLength(255)]
+        [Required]
         public string Name { get; set; }
 
         public string Biography { get; set; }

@@ -3,16 +3,16 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Streamflix.Model
 {
-    public class ContentCast
+    public class VideoCast
     {
         [Required]
-        public int ContentId { get; set; }
+        public int VideoId { get; set; }
 
         [Required]
         public int ActorId { get; set; }
 
-        [ForeignKey("ContentId")]
-        public Content Content { get; set; }
+        [ForeignKey("VideoId")]
+        public Video Video { get; set; }
 
         [ForeignKey("ActorId")]
         public Actor Actor { get; set; }

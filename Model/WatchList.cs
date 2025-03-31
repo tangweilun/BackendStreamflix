@@ -20,6 +20,6 @@ namespace Streamflix.Model
         public User User { get; set; }
 
         [ForeignKey("ContentId")]
-        public Content Content { get; set; }
+        public Video Content { get; set; }
     }
 }

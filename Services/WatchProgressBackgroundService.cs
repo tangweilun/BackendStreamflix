@@ -8,11 +8,11 @@ namespace Streamflix.Services
     public class WatchProgressBackgroundService : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IWatchHistoryQueue _queue;
+        private readonly WatchHistoryQueue _queue;
         private readonly ILogger<WatchProgressBackgroundService> _logger;
-        private readonly TimeSpan _interval = TimeSpan.FromSeconds(30);
+        private const int BatchSize = 50;
 
-        public WatchProgressBackgroundService(IServiceScopeFactory scopeFactory, IWatchProgressQueue queue, ILogger<WatchProgressBackgroundService> logger)
+        public WatchProgressBackgroundService(IServiceScopeFactory scopeFactory, WatchHistoryQueue queue, ILogger<WatchProgressBackgroundService> logger)
         {
             _scopeFactory = scopeFactory;
             _queue = queue;
@@ -21,62 +21,100 @@ namespace Streamflix.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("WatchProgressBackgroundService started.");
-
             while (!stoppingToken.IsCancellationRequested)
             {
-                try
+                if (_queue.GetQueueSize() > 0)
                 {
-                    // Dequeue all available updates
-                    var updates = new List<WatchProgressUpdateDto>();
+                    using var scope = _scopeFactory.CreateScope();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var batch = _queue.DequeueBatch(BatchSize);
 
-                    while (_queue.TryDequeue(out var update))
+                    if (batch.Count > 0)
                     {
-                        updates.Add(update);
-                    }
-
-                    if (updates.Any())
-                    {
-                        using (var scope = _scopeFactory.CreateScope())
+                        foreach (var history in batch)
                         {
-                            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                            var existingHistory = await dbContext.WatchHistory
+                                .FirstOrDefaultAsync(h => h.UserId == history.UserId && h.VideoId == history.VideoId);
 
-                            foreach (var updateDto in updates)
+                            if (existingHistory != null)
                             {
-                                var existingHistory = await dbContext.WatchHistory
-                                    .FirstOrDefaultAsync(wh => wh.UserId == updateDto.UserId && wh.ContentId == updateDto.ContentId, stoppingToken);
-                            
-                                // Update existing record or create a new one
-                                if (existingHistory != null)
+                                existingHistory.CurrentPosition = history.CurrentPosition;
+                                existingHistory.LastUpdated = DateTime.UtcNow;
+                            }
+                            else
+                            {
+                                var watchHistory = new WatchHistory
                                 {
-                                    existingHistory.CurrentPosition = updateDto.CurrentPosition;
-                                    existingHistory.LastUpdated = DateTime.UtcNow;
-                                }
-                                else
-                                {
-                                    var newHistory = new WatchHistory
-                                    {
-                                        UserId = updateDto.UserId,
-                                        ContentId = updateDto.ContentId,
-                                        CurrentPosition = updateDto.CurrentPosition,
-                                        LastUpdated = DateTime.UtcNow
-                                    };
+                                    UserId = history.UserId,
+                                    VideoId = history.VideoId,
+                                    CurrentPosition = history.CurrentPosition,
+                                    LastUpdated = DateTime.UtcNow
+                                };
 
-                                    dbContext.WatchHistory.Add(newHistory);
-                                }
+                                dbContext.WatchHistory.Add(watchHistory);
                             }
 
-                            await dbContext.SaveChangesAsync(stoppingToken);
-                            _logger.LogInformation($"Processed {updates.Count} watch history updates.");
+                            await dbContext.SaveChangesAsync();
+                            _logger.LogInformation($"Saved {batch.Count} watch history updates.");
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error processing watch history updates.");
-                }
 
-                await Task.Delay(_interval, stoppingToken);
+                    await Task.Delay(5000, stoppingToken); // Save into database every 5 seconds
+                }
+                
+
+                //try
+                //{
+                //    // Dequeue all available updates
+                //    var updates = new List<WatchProgressUpdateDto>();
+
+                //    while (_queue.TryDequeue(out var update))
+                //    {
+                //        updates.Add(update);
+                //    }
+
+                //    if (updates.Any())
+                //    {
+                //        using (var scope = _scopeFactory.CreateScope())
+                //        {
+                //            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                //            foreach (var updateDto in updates)
+                //            {
+                //                var existingHistory = await dbContext.WatchHistory
+                //                    .FirstOrDefaultAsync(wh => wh.UserId == updateDto.UserId && wh.ContentId == updateDto.ContentId, stoppingToken);
+                            
+                //                // Update existing record or create a new one
+                //                if (existingHistory != null)
+                //                {
+                //                    existingHistory.CurrentPosition = updateDto.CurrentPosition;
+                //                    existingHistory.LastUpdated = DateTime.UtcNow;
+                //                }
+                //                else
+                //                {
+                //                    var newHistory = new WatchHistory
+                //                    {
+                //                        UserId = updateDto.UserId,
+                //                        ContentId = updateDto.ContentId,
+                //                        CurrentPosition = updateDto.CurrentPosition,
+                //                        LastUpdated = DateTime.UtcNow
+                //                    };
+
+                //                    dbContext.WatchHistory.Add(newHistory);
+                //                }
+                //            }
+
+                //            await dbContext.SaveChangesAsync(stoppingToken);
+                //            _logger.LogInformation($"Processed {updates.Count} watch history updates.");
+                //        }
+                //    }
+                //}
+                //catch (Exception ex)
+                //{
+                //    _logger.LogError(ex, "Error processing watch history updates.");
+                //}
+
+                //await Task.Delay(_interval, stoppingToken);
             }
         }
     }

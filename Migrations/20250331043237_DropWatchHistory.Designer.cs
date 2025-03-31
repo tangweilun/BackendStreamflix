@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Streamflix.Data;
@@ -11,9 +12,11 @@ using Streamflix.Data;
 namespace Streamflix.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250331043237_DropWatchHistory")]
+    partial class DropWatchHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -43,7 +46,7 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Actors", (string)null);
+                    b.ToTable("Actors");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Genre", b =>
@@ -60,7 +63,7 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Genres", (string)null);
+                    b.ToTable("Genres");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Streamflix.Model.PasswordResetToken", b =>
@@ -85,7 +88,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("PasswordResetTokens", (string)null);
+                    b.ToTable("PasswordResetTokens");
                 });
 
             modelBuilder.Entity("Streamflix.Model.SubscriptionPlan", b =>
@@ -119,7 +122,7 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SubscriptionPlans", (string)null);
+                    b.ToTable("SubscriptionPlans");
                 });
 
             modelBuilder.Entity("Streamflix.Model.User", b =>
@@ -154,7 +157,7 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("Streamflix.Model.UserSubscription", b =>
@@ -191,7 +194,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserSubscription", (string)null);
+                    b.ToTable("UserSubscription");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Video", b =>
@@ -230,7 +233,7 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Videos", (string)null);
+                    b.ToTable("Videos");
                 });
 
             modelBuilder.Entity("Streamflix.Model.VideoCast", b =>
@@ -245,7 +248,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("ActorId");
 
-                    b.ToTable("VideoCasts", (string)null);
+                    b.ToTable("VideoCasts");
                 });
 
             modelBuilder.Entity("Streamflix.Model.VideoGenre", b =>
@@ -260,7 +263,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("GenreId");
 
-                    b.ToTable("VideoGenres", (string)null);
+                    b.ToTable("VideoGenres");
                 });
 
             modelBuilder.Entity("Streamflix.Model.WatchHistory", b =>
@@ -289,7 +292,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("VideoId");
 
-                    b.ToTable("WatchHistory", (string)null);
+                    b.ToTable("WatchHistory");
                 });
 
             modelBuilder.Entity("Streamflix.Model.WatchList", b =>
@@ -315,7 +318,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("WatchLists", (string)null);
+                    b.ToTable("WatchLists");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Streamflix.Model.PasswordResetToken", b =>

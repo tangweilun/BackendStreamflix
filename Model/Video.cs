@@ -3,36 +3,34 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Streamflix.Model
 {
-    public class Content
+    public class Video
     {
         [Key]
         public int Id { get; set; }
 
-        [Required, MaxLength(255)]
+        [Required]
         public string Title { get; set; }
 
         public string Description { get; set; }
 
-        [Required, MaxLength(50)]
-        public string Type { get; set; }
-
         [Required]
         public int Duration { get; set; }
 
-        [Required, MaxLength(10)]
+        [Required]
         public string MaturityRating { get; set; }
 
         [Required]
         public DateTime ReleaseDate { get; set; }
 
-        [Required, MaxLength(255)]
+        [Required]
         public string ThumbnailUrl { get; set; }
 
-        [Required, MaxLength(255)]
+        [Required]
         public string ContentUrl { get; set; }
 
         public ICollection<WatchList> WatchLists { get; set; }
-        public ICollection<ContentGenre> ContentGenres { get; set; }
-        public ICollection<ContentCast> ContentCasts { get; set; }
+        public ICollection<WatchHistory> WatchHistory { get; set; }
+        public ICollection<VideoGenre> VideoGenres { get; set; }
+        public ICollection<VideoCast> VideoCasts { get; set; }
     }
 }
