@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.EntityFrameworkCore;
+using Streamflix.DTOs;
 
 namespace Streamflix.Controllers
 {
@@ -206,6 +207,8 @@ namespace Streamflix.Controllers
 
         //Existing Function: Get All Files
         [HttpGet]
+        [EnableCors("AllowSpecificOrigin")]
+
         public async Task<IActionResult> GetAllFilesAsync(string bucketName, string? prefix)
         {
             var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
@@ -247,6 +250,64 @@ namespace Streamflix.Controllers
             var s3Object = await _s3Client.GetObjectAsync(bucketName, key);
             return File(s3Object.ResponseStream, s3Object.Headers.ContentType);
         }
+        [HttpGet("watch")]
+        [EnableCors("AllowSpecificOrigin")]
+        public async Task<IActionResult> WatchVideoAsync(string showName)
+        {
+            string bucketName = "streamflixtest";
+            string[] extensions = { ".mp4", ".mov", ".webm" }; // Add any other supported formats
+
+            var episodeList = new List<object>();
+
+            // List all objects (episodes) for the given show
+            var listRequest = new ListObjectsV2Request
+            {
+                BucketName = bucketName,
+                Prefix = $"shows/{showName}/episodes/"
+            };
+
+            var listResponse = await _s3Client.ListObjectsV2Async(listRequest);
+
+            if (listResponse.S3Objects.Count == 0)
+            {
+                return NotFound("No episodes found for the show.");
+            }
+
+            foreach (var s3Object in listResponse.S3Objects)
+            {
+                // Check if the file has a supported extension
+                foreach (var ext in extensions)
+                {
+                    if (s3Object.Key.EndsWith(ext))
+                    {
+                        // Generate pre-signed URL for the episode
+                        var urlRequest = new GetPreSignedUrlRequest
+                        {
+                            BucketName = bucketName,
+                            Key = s3Object.Key,
+                            Expires = DateTime.UtcNow.AddMinutes(5)
+                        };
+
+                        var presignedUrl = _s3Client.GetPreSignedURL(urlRequest);
+
+                        episodeList.Add(new
+                        {
+                            episode = s3Object.Key.Split('/').Last().Replace(ext, ""),
+                            url = presignedUrl
+                        });
+                        break;
+                    }
+                }
+            }
+
+            return Ok(new
+            {
+                show = showName,
+                episodes = episodeList
+            });
+        }
+
+
 
         // Existing Function: Delete File
         [HttpDelete]
