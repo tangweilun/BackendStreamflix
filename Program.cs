@@ -13,36 +13,17 @@ using Amazon.Runtime;
 using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
-// Configure HTTPS redirection
-builder.Services.AddHttpsRedirection(options =>
-{
-    options.RedirectStatusCode = StatusCodes.Status307TemporaryRedirect;
-    if (builder.Environment.IsDevelopment())
-    {
-        // Development port from launchSettings.json
-        options.HttpsPort = 7230;
-    }
-    else
-    {
-        // Production uses standard HTTPS port
-        options.HttpsPort = 443;
-    }
-});
 
 // Add CORS configuration
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
-        policy => policy.WithOrigins(
-                        "http://localhost:3000",  // Development Next.js frontend
-                        "https://localhost:3000", // HTTPS local frontend
-                        "https://marvelous-panda-93e12f.netlify.app") // Replace with your actual Netlify domain
-                    .SetIsOriginAllowed(_ => true)
-                    .AllowAnyMethod()
-                    .AllowCredentials()
-                    .AllowAnyHeader());
+        policy => policy.WithOrigins("http://localhost:3000")  // Allow Next.js frontend
+                        .SetIsOriginAllowed(_ => true)  // Allows dynamic origins if needed
+                        .AllowAnyMethod()
+                        .AllowCredentials() // Allow cookies
+                        .AllowAnyHeader());
 });
-
 
 // Add services to the container.
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
@@ -183,22 +164,19 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     Console.WriteLine("\n\n\nTru");
+
     app.UseSwagger();
     app.UseSwaggerUI();
-}
-else
-{
-    // For API-only applications, use the built-in exception handler middleware
-    app.UseExceptionHandler("/error");
+
+    app.UseExceptionHandler("/Home/Error");
+    //The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka/ms/aspnetcore-hsts
     app.UseHsts();
 }
 
-// Map a minimal API endpoint for error handling
-app.MapGet("/error", () => Results.Problem("An error occurred.", statusCode: 500))
-   .ExcludeFromDescription();
 
 app.UseHttpsRedirection();
 // Enable CORS
