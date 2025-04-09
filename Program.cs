@@ -13,6 +13,10 @@ using Amazon.Runtime;
 using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(5000); // Listen on port 5000 for all network interfaces
+});
 
 // Add CORS configuration
 builder.Services.AddCors(options =>
