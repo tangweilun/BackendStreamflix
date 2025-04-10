@@ -3,7 +3,7 @@
 
 # Update and install dependencies
 apt update -y
-apt install -y docker.io nginx git unzip
+apt install -y docker.io docker-compose nginx git unzip
 
 # Start and enable services
 systemctl start docker
@@ -11,8 +11,10 @@ systemctl enable docker
 systemctl start nginx
 systemctl enable nginx
 
-# Configure Docker to run without sudo for the user
-usermod -aG docker $USER
+# Configure Docker to run without sudo for the ubuntu user
+usermod -aG docker ubuntu
+# Create a docker group if it doesn't exist
+groupadd -f docker
 
 # Create Docker Compose file
 mkdir -p /app

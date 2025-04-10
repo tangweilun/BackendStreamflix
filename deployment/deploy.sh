@@ -156,24 +156,75 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/vockey.pem ubuntu@$INSTANCE_IP << 'REM
     sudo apt install -y unzip
   fi
 
+  # Ensure docker is installed and user has permissions
+  if ! command -v docker &> /dev/null; then
+    echo "Installing Docker..."
+    sudo apt update -y
+    sudo apt install -y docker.io docker-compose
+    sudo systemctl start docker
+    sudo systemctl enable docker
+  fi
+  
+  # Add current user to docker group
+  sudo usermod -aG docker $USER
+  echo "Docker permissions set. You may need to reconnect to use Docker without sudo."
+  
+  # For immediate effect in this session
+  if ! sudo docker ps &> /dev/null; then
+    echo "Using sudo for Docker commands in this session"
+    DOCKER_CMD="sudo docker"
+    DOCKER_COMPOSE_CMD="sudo docker-compose"
+  else
+    DOCKER_CMD="docker"
+    DOCKER_COMPOSE_CMD="docker-compose"
+  fi
+
   sudo mkdir -p /app
   sudo chown ubuntu:ubuntu /app
   cd /app
   unzip -o /tmp/app.zip -d .
   rm /tmp/app.zip
   
-  # Check if server_deploy.sh exists and run it instead of deploy.sh
+  # Check if server_deploy.sh exists and run it
   if [ -f "./server_deploy.sh" ]; then
     sudo chmod +x ./server_deploy.sh
     sudo ./server_deploy.sh
+    
+    # Verify application is running
+    echo "Verifying application status..."
+    $DOCKER_CMD ps
+    
+    # Check if container is running, if not start it
+    if ! $DOCKER_CMD ps | grep streamflix; then
+      echo "Starting Docker container manually..."
+      cd /app
+      $DOCKER_COMPOSE_CMD up -d
+    fi
   else
-    echo "Warning: server_deploy.sh not found. Please ensure your deployment includes the correct server setup script."
+    echo "Warning: server_deploy.sh not found. Attempting to deploy manually."
+    
+    # Build and run Docker container manually
+    cd /app
+    $DOCKER_CMD build -t streamflix:latest .
+    $DOCKER_CMD run -d --name streamflix -p 5000:5000 streamflix:latest
   fi
+  
+  # Check Nginx configuration
+  echo "Checking Nginx configuration..."
+  sudo nginx -t
+  sudo systemctl restart nginx
+  
+  # Test the API
+  echo "Testing API endpoint..."
+  curl -v http://localhost:5000/api/HellowWorld || echo "API not accessible on port 5000"
 REMOTE_COMMANDS
 
 echo "====== Deployment Complete ======"
 echo "Your application is now available at: http://$INSTANCE_IP"
-echo "SSH command: ssh -i vockey.pem ubuntu@$INSTANCE_IP"
+echo "SSH command: ssh -i ~/.ssh/vockey.pem ubuntu@$INSTANCE_IP"
+echo ""
+echo "Note: If you need to run Docker commands, you may need to use sudo until you log out and log back in."
+echo "Try: sudo docker ps"
 
 # Clean up temp files
 rm -rf "$BUILD_DIR"
