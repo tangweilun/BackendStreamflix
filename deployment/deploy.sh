@@ -149,6 +149,13 @@ echo "Deploying the application..."
 ssh -o StrictHostKeyChecking=no -i ~/.ssh/vockey.pem ubuntu@$INSTANCE_IP << 'REMOTE_COMMANDS'
   set -e
 
+  # Install unzip if not already installed
+  if ! command -v unzip &> /dev/null; then
+    echo "Installing unzip..."
+    sudo apt update -y
+    sudo apt install -y unzip
+  fi
+
   sudo mkdir -p /app
   sudo chown ubuntu:ubuntu /app
   cd /app
@@ -157,6 +164,7 @@ ssh -o StrictHostKeyChecking=no -i ~/.ssh/vockey.pem ubuntu@$INSTANCE_IP << 'REM
   
   # Check if server_deploy.sh exists and run it instead of deploy.sh
   if [ -f "./server_deploy.sh" ]; then
+    sudo chmod +x ./server_deploy.sh
     sudo ./server_deploy.sh
   else
     echo "Warning: server_deploy.sh not found. Please ensure your deployment includes the correct server setup script."

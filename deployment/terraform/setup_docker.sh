@@ -3,7 +3,7 @@
 
 # Update and install dependencies
 apt update -y
-apt install -y docker.io nginx git
+apt install -y docker.io nginx git unzip
 
 # Start and enable services
 systemctl start docker
