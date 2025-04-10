@@ -157,10 +157,10 @@ namespace Streamflix.Controllers
         [HttpPost("upload-episode")]
         [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> UploadEpisodeAsync(
-    [FromForm] string bucketName,
-    [FromForm] string showTitle, // Receive showTitle instead of showId
-    [FromForm] int episodeNumber,
-    [FromForm] IFormFile file)
+        [FromForm] string bucketName,
+        [FromForm] string showTitle, // Receive showTitle instead of showId
+        [FromForm] int episodeNumber,
+        [FromForm] IFormFile file)
         {
             // 🏷️ Create Correct S3 Path
             string fileExtension = Path.GetExtension(file.FileName);
@@ -306,18 +306,57 @@ namespace Streamflix.Controllers
                 episodes = episodeList
             });
         }
-
-
-
         // Existing Function: Delete File
         [HttpDelete]
-        public async Task<IActionResult> DeleteFileAsync(string bucketName, string key)
+        [EnableCors("AllowSpecificOrigin")]
+        public async Task<IActionResult> DeletePrefixAsync(string bucketName, string prefix)
         {
-            var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
-            if (!bucketExists) return NotFound($"Bucket {bucketName} does not exist.");
+            if (!prefix.StartsWith("shows/"))
+            {
+                prefix = "shows/" + prefix;
+            }
 
-            await _s3Client.DeleteObjectAsync(bucketName, key);
-            return NoContent();
+            var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
+            if (!bucketExists)
+            {
+                return NotFound($"Bucket {bucketName} does not exist.");
+            }
+
+            var listRequest = new ListObjectsV2Request()
+            {
+                BucketName = bucketName,
+                Prefix = prefix
+            };
+
+            var listResult = await _s3Client.ListObjectsV2Async(listRequest);
+            if (listResult.S3Objects.Count == 0)
+            {
+                return NotFound($"No objects found with prefix '{prefix}'.");
+            }
+
+            var deleteRequest = new DeleteObjectsRequest
+            {
+                BucketName = bucketName,
+                Objects = listResult.S3Objects.Select(s => new KeyVersion { Key = s.Key }).ToList()
+            };
+
+            try
+            {
+                var deleteResult = await _s3Client.DeleteObjectsAsync(deleteRequest);
+
+                if (deleteResult.DeleteErrors.Count > 0)
+                {
+                    return BadRequest($"Error deleting objects: {string.Join(", ", deleteResult.DeleteErrors.Select(e => e.Key))}");
+                }
+
+                return Ok($"Prefix '{prefix}' and all its objects have been deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
+
+
     }
 }
