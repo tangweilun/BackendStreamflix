@@ -59,12 +59,11 @@ fi
 echo "Deploying infrastructure with Terraform..."
 if ! terraform apply -auto-approve; then
   echo "Terraform apply failed. Attempting to troubleshoot..."
-  echo "Checking if resources already exist..."
   
-  # Check AWS console for existing security group
-  if aws ec2 describe-security-groups --group-names streamflix-sg --region us-east-1 >/dev/null 2>&1; then
-    echo "Security group 'streamflix-sg' already exists."
-    echo "Try running the script again or manually check your AWS resources."
+  # Check for common AWS Academy permission issues
+  if grep -q "UnauthorizedOperation" terraform.tfstate; then
+    echo "Permission error detected. This is common with AWS Academy accounts."
+    echo "Try running the script again with a fresh session or contact your instructor."
   else
     echo "Infrastructure deployment failed for an unknown reason."
     echo "Please check the AWS console and Terraform logs for more details."
