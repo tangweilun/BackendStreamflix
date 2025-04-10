@@ -35,24 +35,44 @@ if ! aws sts get-caller-identity > /dev/null; then
   exit 1
 fi
 
-# Check if Terraform is already initialized
-# if [ -d ".terraform" ]; then
-#   echo "Terraform has already been initialized. Skipping initialization."
-# else
-  echo "Initializing Terraform..."
-  terraform init
-# fi
+echo "Initializing Terraform..."
+terraform init
+
+# Try to plan to see if there are any issues
+echo "Planning infrastructure changes with Terraform..."
+if ! terraform plan -out=tfplan; then
+  echo "Terraform plan failed. This might be due to existing resources."
+  
+  # Ask user if they want to destroy existing resources
+  read -p "Would you like to destroy existing resources and start fresh? (y/n): " destroy_choice
+  if [[ "$destroy_choice" == "y" ]]; then
+    echo "Destroying existing resources..."
+    terraform destroy -auto-approve
+    echo "Re-planning infrastructure..."
+    terraform plan -out=tfplan
+  else
+    echo "Attempting to continue with existing resources..."
+  fi
+fi
 
 # Apply Terraform configuration
 echo "Deploying infrastructure with Terraform..."
-terraform apply -auto-approve
+if ! terraform apply -auto-approve; then
+  echo "Terraform apply failed. Attempting to troubleshoot..."
+  echo "Checking if resources already exist..."
+  
+  # Check AWS console for existing security group
+  if aws ec2 describe-security-groups --group-names streamflix-sg --region us-east-1 >/dev/null 2>&1; then
+    echo "Security group 'streamflix-sg' already exists."
+    echo "Try running the script again or manually check your AWS resources."
+  else
+    echo "Infrastructure deployment failed for an unknown reason."
+    echo "Please check the AWS console and Terraform logs for more details."
+  fi
+  exit 1
+fi
 
 # Get the EC2 instance IP
-# After terraform apply, add these lines for debugging
-echo "Listing all Terraform outputs:"
-terraform output
-
-# Then try to get the specific output
 echo "Attempting to get public_ip output:"
 INSTANCE_IP=$(terraform output -raw public_ip)
 if [ -z "$INSTANCE_IP" ]; then
@@ -87,8 +107,16 @@ if [ ! -f "$DEPLOYMENT_DIR/vockey.pem" ]; then
   exit 1
 fi
 
+
+mkdir -p ~/.ssh
+#Copy  key file to Linux filesystem (not the Windows filesystem mounted via WSL)
+cp "$DEPLOYMENT_DIR/vockey.pem" ~/.ssh/vockey.pem
+#Set proper permissions for the key file
+chmod 600 ~/.ssh/vockey.pem
+
+
 # Set proper permissions for the key file
-chmod 400 "$DEPLOYMENT_DIR/vockey.pem"
+
 
 # Wait for SSH to become available
 echo "Waiting for SSH to become available..."
@@ -97,7 +125,7 @@ echo "Key file path: $DEPLOYMENT_DIR/vockey.pem"
 echo "Instance IP: $INSTANCE_IP"
 SSH_AVAILABLE=false
 for i in $(seq 1 10); do
-  if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -i "$DEPLOYMENT_DIR/vockey.pem" ubuntu@$INSTANCE_IP echo "SSH is up" > /dev/null 2>&1; then
+ if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -i ~/.ssh/vockey.pem ubuntu@$INSTANCE_IP echo "SSH is up" > /dev/null 2>&1; then
     SSH_AVAILABLE=true
     break
   fi
@@ -114,11 +142,11 @@ fi
 
 # Upload application files
 echo "Uploading application files..."
-scp -o StrictHostKeyChecking=no -i "$DEPLOYMENT_DIR/vockey.pem" "$DEPLOYMENT_DIR/app.zip" ubuntu@$INSTANCE_IP:/tmp/
+scp -o StrictHostKeyChecking=no -i ~/.ssh/vockey.pem "$DEPLOYMENT_DIR/app.zip" ubuntu@$INSTANCE_IP:/tmp/
 
 # Deploy the application
 echo "Deploying the application..."
-ssh -o StrictHostKeyChecking=no -i "$DEPLOYMENT_DIR/vockey.pem" ubuntu@$INSTANCE_IP << 'REMOTE_COMMANDS'
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/vockey.pem ubuntu@$INSTANCE_IP << 'REMOTE_COMMANDS'
   set -e
 
   sudo mkdir -p /app
