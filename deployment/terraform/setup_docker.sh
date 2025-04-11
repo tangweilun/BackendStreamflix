@@ -34,26 +34,11 @@ EOL
 # Configure Nginx as reverse proxy
 cat > /etc/nginx/sites-available/streamflix << 'EOL'
 server {
-    listen 80;
-    server_name streamflix.com;
-
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection keep-alive;
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-
-server {
     listen 80 default_server;
+    server_name _;
 
     location / {
-        proxy_pass http://localhost:5000;
+        proxy_pass http://localhost:5000/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection keep-alive;
@@ -61,12 +46,16 @@ server {
         proxy_cache_bypass $http_upgrade;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Path $request_uri;
     }
 }
 EOL
+# Remove default site if it exists
+rm -f /etc/nginx/sites-enabled/default
 
 # Enable Nginx site configuration
-ln -s /etc/nginx/sites-available/streamflix /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/streamflix /etc/nginx/sites-enabled/
 
 # Create deployment script
 cat > /app/server_deploy.sh << 'EOL'
