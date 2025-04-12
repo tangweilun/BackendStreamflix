@@ -1,232 +1,495 @@
 #!/bin/bash
-# deploy.sh
+# deploy.sh - Enhanced Streamflix Deployment Script
+# This script automates the deployment of the Streamflix application to AWS
 
+# Enable strict error handling
+set -eo pipefail
+
+# Color codes for better readability
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Configuration
+SSH_KEY_NAME="vockey.pem"
+SSH_KEY_PATH=~/.ssh/${SSH_KEY_NAME}
+MAX_SSH_RETRIES=15
+SSH_RETRY_DELAY=20
+TERRAFORM_DIR="terraform"
+APP_NAME="streamflix"
+
+# Display banner
+echo -e "${BOLD}${GREEN}====== Streamflix Deployment Tool ======${NC}"
+echo "Starting deployment: $(date)"
+
+# Function to display status messages
+log() {
+  local level=$1
+  local message=$2
+  case $level in
+    info)  echo -e "${GREEN}[INFO]${NC} $message" ;;
+    warn)  echo -e "${YELLOW}[WARNING]${NC} $message" ;;
+    error) echo -e "${RED}[ERROR]${NC} $message" ;;
+    *)     echo "$message" ;;
+  esac
+}
+
+# Function to display steps
+step() {
+  echo -e "\n${BOLD}${GREEN}➤ $1${NC}"
+}
+
+# Function to check for required tools
+check_prerequisites() {
+  step "Checking prerequisites"
+  
+  local missing_tools=()
+  
+  for tool in terraform aws zip unzip; do
+    if ! command -v $tool &> /dev/null; then
+      missing_tools+=($tool)
+    fi
+  done
+  
+  if [ ${#missing_tools[@]} -ne 0 ]; then
+    log error "The following required tools are missing: ${missing_tools[*]}"
+    log info "Please install the required tools and try again."
+    exit 1
+  fi
+  
+  log info "All required tools are installed."
+}
+
+# Function to set up directory structure
+setup_directories() {
+  step "Setting up directories"
+  
+  # Ensure we're in the deployment directory
+  cd "$(dirname "$0")"
+  DEPLOYMENT_DIR=$(pwd)
+  PROJECT_ROOT=$(dirname "$DEPLOYMENT_DIR")
+  
+  # Ensure SSH directory exists
+  mkdir -p ~/.ssh
+  
+  log info "Deployment directory: $DEPLOYMENT_DIR"
+  log info "Project root: $PROJECT_ROOT"
+}
+
+# Function to handle AWS credentials
+setup_aws_credentials() {
+  step "Setting up AWS credentials"
+  
+  # Check if credentials are already set
+  echo "Please enter your AWS Academy credentials:"
+  read -p "AWS Access Key ID: " AWS_ACCESS_KEY_ID
+  read -p "AWS Secret Access Key: " AWS_SECRET_ACCESS_KEY
+  echo
+  read -p "AWS Session Token: " AWS_SESSION_TOKEN
+  
+  # Export credentials
+  export AWS_ACCESS_KEY_ID
+  export AWS_SECRET_ACCESS_KEY
+  export AWS_SESSION_TOKEN
+  
+  # Verify credentials
+  log info "Verifying AWS credentials..."
+  if ! aws sts get-caller-identity &> /dev/null; then
+    log error "Invalid AWS credentials. Please check and try again."
+    exit 1
+  fi
+  
+  log info "AWS credentials verified successfully."
+}
+
+# Function to handle Terraform operations
+provision_infrastructure() {
+  step "Provisioning infrastructure with Terraform"
+  
+  # Change to Terraform directory
+  cd "$DEPLOYMENT_DIR/$TERRAFORM_DIR"
+  
+  # Clean up old state
+  log info "Cleaning up previous Terraform state..."
+  rm -f terraform.tfstate terraform.tfstate.backup tfplan
+  rm -rf .terraform .terraform.lock.hcl
+  
+  # Clear plugin cache if exists
+  if [ -d ~/.terraform.d/plugin-cache ]; then
+    log info "Clearing Terraform plugin cache..."
+    rm -rf ~/.terraform.d/plugin-cache
+  fi
+  
+  # Initialize Terraform
+  log info "Initializing Terraform..."
+  terraform init
+  
+  # Create and show execution plan
+  log info "Creating Terraform execution plan..."
+  terraform plan -out=tfplan
+  
+  # Apply Terraform configuration
+  log info "Applying Terraform configuration..."
+  if ! terraform apply -auto-approve tfplan; then
+    log error "Terraform apply failed. Attempting to troubleshoot..."
+    
+    # Check for common AWS Academy permission issues
+    if grep -q "UnauthorizedOperation" terraform.tfstate 2>/dev/null; then
+      log error "Permission error detected. This is common with AWS Academy accounts."
+      log info "Try running the script again with a fresh session or contact your instructor."
+    else
+      log error "Infrastructure deployment failed for an unknown reason."
+      log info "Please check the AWS console and Terraform logs for more details."
+    fi
+    exit 1
+  fi
+  
+  # Get the EC2 instance IP
+  INSTANCE_IP=$(terraform output -raw public_ip 2>/dev/null)
+  if [ -z "$INSTANCE_IP" ]; then
+    log error "Failed to get instance IP from Terraform output."
+    log info "Check the Terraform state and AWS console."
+    exit 1
+  fi
+  
+  log info "EC2 instance deployed with IP: $INSTANCE_IP"
+  echo "INSTANCE_IP=$INSTANCE_IP" > "$DEPLOYMENT_DIR/.deployment_vars"
+}
+
+# Function to prepare the application package
+prepare_application() {
+  step "Preparing application package"
+  
+  # Load deployment variables if they exist
+  if [ -f "$DEPLOYMENT_DIR/.deployment_vars" ]; then
+    source "$DEPLOYMENT_DIR/.deployment_vars"
+  fi
+  
+  # Verify instance IP is available
+  if [ -z "$INSTANCE_IP" ]; then
+    log error "Instance IP not found. Infrastructure provisioning may have failed."
+    exit 1
+  fi
+  
+  # Create a temporary build directory
+  BUILD_DIR=$(mktemp -d)
+  log info "Created temporary build directory: $BUILD_DIR"
+  
+  # Copy application files
+  log info "Copying application files..."
+  cp -r "$PROJECT_ROOT"/* "$BUILD_DIR/"
+  
+  # Copy Dockerfile if it exists in deployment directory
+  if [ -f "$DEPLOYMENT_DIR/Dockerfile" ]; then
+    cp "$DEPLOYMENT_DIR/Dockerfile" "$BUILD_DIR/"
+  fi
+  
+  # Create application package
+  log info "Creating application package..."
+  cd "$BUILD_DIR"
+  zip -rq "$DEPLOYMENT_DIR/app.zip" .
+  
+  log info "Application package created: $DEPLOYMENT_DIR/app.zip"
+}
+
+# Function to setup SSH access
+setup_ssh_access() {
+  step "Setting up SSH access"
+  
+  # Check for required SSH key
+  if [ ! -f "$DEPLOYMENT_DIR/$SSH_KEY_NAME" ]; then
+    log error "$SSH_KEY_NAME not found in $DEPLOYMENT_DIR"
+    log info "Please place your AWS key file in the deployment directory."
+    exit 1
+  fi
+  
+  # Copy and set proper permissions for the key file
+  log info "Configuring SSH key..."
+  cp "$DEPLOYMENT_DIR/$SSH_KEY_NAME" "$SSH_KEY_PATH"
+  chmod 600 "$SSH_KEY_PATH"
+  
+  # Wait for SSH to become available
+  log info "Waiting for SSH to become available on $INSTANCE_IP..."
+  local SSH_AVAILABLE=false
+  
+  for i in $(seq 1 $MAX_SSH_RETRIES); do
+    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP echo "SSH is up" &> /dev/null; then
+      SSH_AVAILABLE=true
+      log info "SSH connection established successfully."
+      break
+    fi
+    log warn "Waiting for SSH... (Attempt $i/$MAX_SSH_RETRIES)"
+    sleep $SSH_RETRY_DELAY
+  done
+  
+  if [ "$SSH_AVAILABLE" = false ]; then
+    log error "SSH did not become available after $MAX_SSH_RETRIES attempts."
+    log info "Check the instance status in the AWS console."
+    log info "You may need to manually deploy after the instance is ready."
+    log info "Manual deployment instructions:"
+    log info "1. Upload app.zip to the instance: scp -i $SSH_KEY_PATH $DEPLOYMENT_DIR/app.zip ubuntu@$INSTANCE_IP:/tmp/"
+    log info "2. SSH into the instance: ssh -i $SSH_KEY_PATH ubuntu@$INSTANCE_IP"
+    log info "3. Extract and deploy the application manually"
+    exit 1
+  fi
+}
+
+# Function to deploy the application
+deploy_application() {
+  step "Deploying application to $INSTANCE_IP"
+  
+  # Upload application files
+  log info "Uploading application package..."
+  scp -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" "$DEPLOYMENT_DIR/app.zip" ubuntu@$INSTANCE_IP:/tmp/
+  
+  # Create remote deployment script
+  cat > "$DEPLOYMENT_DIR/remote_deploy.sh" << 'REMOTE_SCRIPT'
+#!/bin/bash
 set -e
 
-echo "====== Starting Streamflix Deployment ======"
+# Color codes for better readability
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-# Ensure current directory is the deployment directory
-cd "$(dirname "$0")"
-DEPLOYMENT_DIR=$(pwd)
-PROJECT_ROOT=$(dirname "$DEPLOYMENT_DIR")
+# Function to display status messages
+log() {
+  local level=$1
+  local message=$2
+  case $level in
+    info)  echo -e "${GREEN}[INFO]${NC} $message" ;;
+    warn)  echo -e "${YELLOW}[WARNING]${NC} $message" ;;
+    error) echo -e "${RED}[ERROR]${NC} $message" ;;
+    *)     echo "$message" ;;
+  esac
+}
 
-# Check for prerequisites
-command -v terraform >/dev/null 2>&1 || { echo "Terraform is required but not installed. Aborting."; exit 1; }
-command -v aws >/dev/null 2>&1 || { echo "AWS CLI is required but not installed. Aborting."; exit 1; }
-
-# Change to terraform directory
-cd "$DEPLOYMENT_DIR/terraform"
-
-# Prompt for AWS Academy credentials
-echo "Please enter your AWS Academy credentials:"
-read -p "AWS Access Key ID: " AWS_ACCESS_KEY_ID
-read -p "AWS Secret Access Key: " AWS_SECRET_ACCESS_KEY
-read -p "AWS Session Token: " AWS_SESSION_TOKEN
-
-# Set AWS credentials as environment variables
-export AWS_ACCESS_KEY_ID
-export AWS_SECRET_ACCESS_KEY
-export AWS_SESSION_TOKEN
-
-# Verify credentials
-echo "Verifying AWS credentials..."
-if ! aws sts get-caller-identity > /dev/null; then
-  echo "Invalid AWS credentials. Please check and try again."
-  exit 1
-fi
-
-echo "Initializing Terraform..."
-
-terraform init -reconfigure
-
-
-
-# Try to plan to see if there are any issues
-# echo "Planning infrastructure changes with Terraform..."
-# if ! terraform plan -out=tfplan; then
-#   echo "Terraform plan failed. This might be due to existing resources."
+# Function to install required packages
+install_packages() {
+  log info "Updating package lists..."
+  sudo apt update -y
   
-#   # Ask user if they want to destroy existing resources
-#   read -p "Would you like to destroy existing resources and start fresh? (y/n): " destroy_choice
-#   if [[ "$destroy_choice" == "y" ]]; then
-#     echo "Destroying existing resources..."
-#     terraform destroy -auto-approve
-#     echo "Re-planning infrastructure..."
-#     terraform plan -out=tfplan
-#   else
-#     echo "Attempting to continue with existing resources..."
-#   fi
-# fi
-
-# Apply Terraform configuration
-echo "Deploying infrastructure with Terraform..."
-if ! terraform apply -auto-approve; then
-  echo "Terraform apply failed. Attempting to troubleshoot..."
+  log info "Installing required packages..."
+  sudo apt install -y unzip docker.io docker-compose nginx
   
-  # Check for common AWS Academy permission issues
-  if grep -q "UnauthorizedOperation" terraform.tfstate; then
-    echo "Permission error detected. This is common with AWS Academy accounts."
-    echo "Try running the script again with a fresh session or contact your instructor."
-  else
-    echo "Infrastructure deployment failed for an unknown reason."
-    echo "Please check the AWS console and Terraform logs for more details."
-  fi
-  exit 1
-fi
-
-# Get the EC2 instance IP
-echo "Attempting to get public_ip output:"
-INSTANCE_IP=$(terraform output -raw public_ip)
-if [ -z "$INSTANCE_IP" ]; then
-  echo "Error: Failed to get instance IP from Terraform output."
-  echo "Check the Terraform state and AWS console."
-  exit 1
-fi
-echo "EC2 instance deployed with IP: $INSTANCE_IP"
-
-# Wait for instance to initialize
-echo "Waiting for instance to initialize (this may take a few minutes)..."
-sleep 90
-
-# Prepare application package
-echo "Preparing application package..."
-cd "$PROJECT_ROOT"
-
-# Create a temporary build directory
-BUILD_DIR=$(mktemp -d)
-cp -r * "$BUILD_DIR"
-cp "$DEPLOYMENT_DIR/Dockerfile" "$BUILD_DIR"
-
-# Create a zip of the application
-cd "$BUILD_DIR"
-zip -r "$DEPLOYMENT_DIR/app.zip" .
-cd "$DEPLOYMENT_DIR"
-
-# Check for required files
-if [ ! -f "$DEPLOYMENT_DIR/vockey.pem" ]; then
-  echo "Error: vockey.pem not found in $DEPLOYMENT_DIR"
-  echo "Please place your AWS key file in the deployment directory."
-  exit 1
-fi
-
-
-mkdir -p ~/.ssh
-#Copy  key file to Linux filesystem (not the Windows filesystem mounted via WSL)
-cp "$DEPLOYMENT_DIR/vockey.pem" ~/.ssh/vockey.pem
-#Set proper permissions for the key file
-chmod 600 ~/.ssh/vockey.pem
-
-
-# Set proper permissions for the key file
-
-
-# Wait for SSH to become available
-echo "Waiting for SSH to become available..."
-echo "Deployment directory: $DEPLOYMENT_DIR"
-echo "Key file path: $DEPLOYMENT_DIR/vockey.pem"
-echo "Instance IP: $INSTANCE_IP"
-SSH_AVAILABLE=false
-for i in $(seq 1 10); do
- if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -i ~/.ssh/vockey.pem ubuntu@$INSTANCE_IP echo "SSH is up" > /dev/null 2>&1; then
-    SSH_AVAILABLE=true
-    break
-  fi
-  echo "Waiting for SSH... (Attempt $i/10)"
-  sleep 15
-done
-
-if [ "$SSH_AVAILABLE" = false ]; then
-  echo "SSH did not become available. Check the instance status in the AWS console."
-  echo "You may need to manually deploy after the instance is ready."
-  echo "Upload the app.zip file to the instance and run the deployment script."
-  exit 1
-fi
-
-# Upload application files
-echo "Uploading application files..."
-scp -o StrictHostKeyChecking=no -i ~/.ssh/vockey.pem "$DEPLOYMENT_DIR/app.zip" ubuntu@$INSTANCE_IP:/tmp/
-
-# Deploy the application
-echo "Deploying the application..."
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/vockey.pem ubuntu@$INSTANCE_IP << 'REMOTE_COMMANDS'
-  set -e
-
-  # Install unzip if not already installed
-  if ! command -v unzip &> /dev/null; then
-    echo "Installing unzip..."
-    sudo apt update -y
-    sudo apt install -y unzip
-  fi
-
-  # Ensure docker is installed and user has permissions
-  if ! command -v docker &> /dev/null; then
-    echo "Installing Docker..."
-    sudo apt update -y
-    sudo apt install -y docker.io docker-compose
-    sudo systemctl start docker
-    sudo systemctl enable docker
-  fi
+  sudo systemctl start docker
+  sudo systemctl enable docker
   
-  # Add current user to docker group
+  # Configure user permissions for Docker
   sudo usermod -aG docker $USER
-  echo "Docker permissions set. You may need to reconnect to use Docker without sudo."
-  
-  # For immediate effect in this session
-  if ! sudo docker ps &> /dev/null; then
-    echo "Using sudo for Docker commands in this session"
-    DOCKER_CMD="sudo docker"
-    DOCKER_COMPOSE_CMD="sudo docker-compose"
-  else
+  log info "Docker permissions set. You may need to reconnect to use Docker without sudo."
+}
+
+# Set up Docker command with or without sudo
+setup_docker_cmd() {
+  if docker ps &> /dev/null; then
     DOCKER_CMD="docker"
     DOCKER_COMPOSE_CMD="docker-compose"
-  fi
-
-  sudo mkdir -p /app
-  sudo chown ubuntu:ubuntu /app
-  cd /app
-  unzip -o /tmp/app.zip -d .
-  rm /tmp/app.zip
-  
-  # Check if server_deploy.sh exists and run it
-  if [ -f "./server_deploy.sh" ]; then
-    sudo chmod +x ./server_deploy.sh
-    sudo ./server_deploy.sh
-    
-    # Verify application is running
-    echo "Verifying application status..."
-    $DOCKER_CMD ps
-    
-    # Check if container is running, if not start it
-    if ! $DOCKER_CMD ps | grep streamflix; then
-      echo "Starting Docker container manually..."
-      cd /app
-      $DOCKER_COMPOSE_CMD up -d
-    fi
   else
-    echo "Warning: server_deploy.sh not found. Attempting to deploy manually."
+    log warn "Using sudo for Docker commands in this session"
+    DOCKER_CMD="sudo docker"
+    DOCKER_COMPOSE_CMD="sudo docker-compose"
+  fi
+}
+
+# Extract application files
+extract_application() {
+  log info "Creating application directory..."
+  sudo mkdir -p /app
+  sudo chown $USER:$USER /app
+  
+  log info "Extracting application package..."
+  unzip -oq /tmp/app.zip -d /app
+  rm /tmp/app.zip
+}
+
+# Deploy the application
+deploy_app() {
+  cd /app
+  
+  # Check if custom deployment script exists
+  if [ -f "./server_deploy.sh" ]; then
+    log info "Running custom deployment script..."
+ sudo chmod +x ./server_deploy.sh
+    ./server_deploy.sh
+  else
+    log warn "No server_deploy.sh found. Deploying manually with Docker..."
     
-    # Build and run Docker container manually
-    cd /app
-    $DOCKER_CMD build -t streamflix:latest .
-    $DOCKER_CMD run -d --name streamflix -p 5000:5000 streamflix:latest
+    # Check if docker-compose.yml exists
+    if [ -f "./docker-compose.yml" ]; then
+      log info "Deploying with docker-compose..."
+      $DOCKER_COMPOSE_CMD down || true
+      $DOCKER_COMPOSE_CMD up -d
+    else
+      log info "Building and running Docker container manually..."
+      $DOCKER_CMD build -t streamflix:latest .
+      $DOCKER_CMD stop streamflix || true
+      $DOCKER_CMD rm streamflix || true
+      $DOCKER_CMD run -d --name streamflix -p 5000:5000 streamflix:latest
+    fi
+  fi
+}
+
+# Configure Nginx (if needed)
+configure_nginx() {
+  if [ -f "/app/nginx.conf" ]; then
+    log info "Configuring Nginx with provided configuration..."
+    sudo cp /app/nginx.conf /etc/nginx/sites-available/streamflix
+    sudo ln -sf /etc/nginx/sites-available/streamflix /etc/nginx/sites-enabled/
+    sudo rm -f /etc/nginx/sites-enabled/default
+  else
+    log info "Creating default Nginx configuration..."
+    sudo tee /etc/nginx/sites-available/streamflix > /dev/null << EOF
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://localhost:5000/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+    sudo ln -sf /etc/nginx/sites-available/streamflix /etc/nginx/sites-enabled/
+    sudo rm -f /etc/nginx/sites-enabled/default
   fi
   
-  # Check Nginx configuration
-  echo "Checking Nginx configuration..."
+  # Check and reload Nginx
+  log info "Testing Nginx configuration..."
   sudo nginx -t
   sudo systemctl restart nginx
+}
+
+# Verify deployment
+verify_deployment() {
+  log info "Verifying application status..."
+  $DOCKER_CMD ps
   
-  # Test the API
-  echo "Testing API endpoint..."
-  curl -v http://localhost:5000/api/HellowWorld || echo "API not accessible on port 5000"
-REMOTE_COMMANDS
+  # Check if container is running
+  if ! $DOCKER_CMD ps | grep -q streamflix; then
+    log error "Application container is not running!"
+    log info "Checking Docker logs..."
+    $DOCKER_CMD logs streamflix
+    log info "Attempting to start container..."
+    cd /app
+    if [ -f "./docker-compose.yml" ]; then
+      $DOCKER_COMPOSE_CMD up -d
+    else
+      $DOCKER_CMD start streamflix
+    fi
+  fi
+  
+  # Test API endpoint
+  log info "Testing API endpoint..."
+  if curl -s http://localhost:5000/api/HellowWorld &> /dev/null; then
+    log info "API is accessible on port 5000"
+  else
+    log warn "API not accessible on port 5000. Check application logs."
+    $DOCKER_CMD logs streamflix
+  fi
+}
 
-echo "====== Deployment Complete ======"
-echo "Your application is now available at: http://$INSTANCE_IP"
-echo "SSH command: ssh -i ~/.ssh/vockey.pem ubuntu@$INSTANCE_IP"
-echo ""
-echo "Note: If you need to run Docker commands, you may need to use sudo until you log out and log back in."
-echo "Try: sudo docker ps"
+# Main deployment process
+main() {
+  log info "Starting server-side deployment..."
+  
+  install_packages
+  setup_docker_cmd
+  extract_application
+  deploy_app
+  configure_nginx
+  verify_deployment
+  
+  log info "Server-side deployment completed successfully."
+}
 
-# Clean up temp files
-rm -rf "$BUILD_DIR"
+# Execute main function
+main
+REMOTE_SCRIPT
+
+  # Upload and execute remote deployment script
+  log info "Uploading deployment script..."
+  scp -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" "$DEPLOYMENT_DIR/remote_deploy.sh" ubuntu@$INSTANCE_IP:/tmp/
+  
+  log info "Executing remote deployment script..."
+  ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP "chmod +x /tmp/remote_deploy.sh && /tmp/remote_deploy.sh"
+  
+  # Clean up
+  rm -f "$DEPLOYMENT_DIR/remote_deploy.sh"
+}
+
+# Function to verify deployment
+verify_deployment() {
+  step "Verifying deployment"
+  
+  log info "Checking application status..."
+  if ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP "curl -s http://localhost:5000/api/HellowWorld" &> /dev/null; then
+    log info "Application API is accessible."
+  else
+    log warn "Application API check failed. Please check the logs on the server."
+    ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP "sudo docker logs streamflix"
+  fi
+  
+  log info "Checking Nginx status..."
+  if ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP "curl -s http://localhost:80" &> /dev/null; then
+    log info "Nginx is properly configured and running."
+  else
+    log warn "Nginx check failed. Please check Nginx configuration."
+    ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP "sudo systemctl status nginx"
+  fi
+}
+
+# Function to display deployment summary
+deployment_summary() {
+  step "Deployment Summary"
+  
+  echo -e "${BOLD}====== Streamflix Deployment Results ======${NC}"
+  echo -e "${BOLD}Application URL:${NC} http://$INSTANCE_IP"
+  echo -e "${BOLD}SSH Command:${NC} ssh -i $SSH_KEY_PATH ubuntu@$INSTANCE_IP"
+  echo -e "${BOLD}Deployment Directory:${NC} $DEPLOYMENT_DIR"
+  echo -e "${BOLD}Deployment Completed:${NC} $(date)"
+  echo
+  echo -e "${YELLOW}Note: If you need to run Docker commands, you may need to use sudo until you log out and log back in.${NC}"
+  echo -e "${YELLOW}Example: sudo docker ps${NC}"
+}
+
+# Function to clean up temporary files
+cleanup() {
+  step "Cleaning up"
+  
+  # Remove temporary build directory if it exists
+  if [ -n "$BUILD_DIR" ] && [ -d "$BUILD_DIR" ]; then
+    log info "Removing temporary build directory..."
+    rm -rf "$BUILD_DIR"
+  fi
+  
+  log info "Cleanup completed."
+}
+
+# Main function to orchestrate the deployment
+main() {
+  check_prerequisites
+  setup_directories
+  setup_aws_credentials
+  provision_infrastructure
+  prepare_application
+  setup_ssh_access
+  deploy_application
+  verify_deployment
+  deployment_summary
+  cleanup
+  
+  echo -e "\n${BOLD}${GREEN}====== Deployment Completed Successfully ======${NC}"
+}
+
+# Trap for cleanup on script exit
+trap cleanup EXIT
+
+# Execute main function
+main
