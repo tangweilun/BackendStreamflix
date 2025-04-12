@@ -36,24 +36,27 @@ if ! aws sts get-caller-identity > /dev/null; then
 fi
 
 echo "Initializing Terraform..."
-terraform init
+
+terraform init -reconfigure
+
+
 
 # Try to plan to see if there are any issues
-echo "Planning infrastructure changes with Terraform..."
-if ! terraform plan -out=tfplan; then
-  echo "Terraform plan failed. This might be due to existing resources."
+# echo "Planning infrastructure changes with Terraform..."
+# if ! terraform plan -out=tfplan; then
+#   echo "Terraform plan failed. This might be due to existing resources."
   
-  # Ask user if they want to destroy existing resources
-  read -p "Would you like to destroy existing resources and start fresh? (y/n): " destroy_choice
-  if [[ "$destroy_choice" == "y" ]]; then
-    echo "Destroying existing resources..."
-    terraform destroy -auto-approve
-    echo "Re-planning infrastructure..."
-    terraform plan -out=tfplan
-  else
-    echo "Attempting to continue with existing resources..."
-  fi
-fi
+#   # Ask user if they want to destroy existing resources
+#   read -p "Would you like to destroy existing resources and start fresh? (y/n): " destroy_choice
+#   if [[ "$destroy_choice" == "y" ]]; then
+#     echo "Destroying existing resources..."
+#     terraform destroy -auto-approve
+#     echo "Re-planning infrastructure..."
+#     terraform plan -out=tfplan
+#   else
+#     echo "Attempting to continue with existing resources..."
+#   fi
+# fi
 
 # Apply Terraform configuration
 echo "Deploying infrastructure with Terraform..."

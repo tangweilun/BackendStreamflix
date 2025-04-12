@@ -2,8 +2,6 @@ provider "aws" {
   region = "us-east-1"  # Use the AWS Academy lab region
 }
 
-# Remove the data source that's causing permission issues
-# Instead, always create a new security group with a unique name
 
 # Create a timestamp-based unique identifier for resources
 locals {
