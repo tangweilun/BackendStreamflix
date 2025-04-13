@@ -126,6 +126,19 @@ provision_infrastructure() {
   log info "Initializing Terraform..."
   terraform init
   
+  # Check if AWS provider plugin exists and set permissions
+  log info "Checking for AWS provider plugin..."
+  # Find the AWS provider plugin (version might vary)
+  AWS_PROVIDER_PATH=$(find .terraform -name "terraform-provider-aws*" -type f | head -n 1)
+  
+  if [ -n "$AWS_PROVIDER_PATH" ] && [ -f "$AWS_PROVIDER_PATH" ]; then
+    log info "AWS provider plugin found at: $AWS_PROVIDER_PATH"
+    log info "Setting executable permissions..."
+    chmod +x "$AWS_PROVIDER_PATH"
+  else
+    log warn "AWS provider plugin not found at expected location. This might cause issues."
+  fi
+  
   # Create and show execution plan
   log info "Creating Terraform execution plan..."
   terraform plan -out=tfplan
@@ -209,6 +222,24 @@ setup_ssh_access() {
   log info "Configuring SSH key..."
   cp "$DEPLOYMENT_DIR/$SSH_KEY_NAME" "$SSH_KEY_PATH"
   chmod 600 "$SSH_KEY_PATH"
+  
+  # Verify SSH key was copied correctly and has proper permissions
+  if [ -f "$SSH_KEY_PATH" ]; then
+    log info "SSH key copied successfully to $SSH_KEY_PATH"
+    
+    # Check permissions
+    KEY_PERMS=$(stat -c "%a" "$SSH_KEY_PATH" 2>/dev/null || stat -f "%Lp" "$SSH_KEY_PATH" 2>/dev/null)
+    if [ "$KEY_PERMS" = "600" ]; then
+      log info "SSH key has correct permissions (600)"
+    else
+      log warn "SSH key has incorrect permissions: $KEY_PERMS (should be 600)"
+      log info "Attempting to fix permissions..."
+      chmod 600 "$SSH_KEY_PATH"
+    fi
+  else
+    log error "Failed to copy SSH key to $SSH_KEY_PATH"
+    exit 1
+  fi
   
   # Wait for SSH to become available
   log info "Waiting for SSH to become available on $INSTANCE_IP..."
