@@ -250,6 +250,15 @@ resource "aws_security_group" "rds_sg" {
     protocol        = "tcp"
     security_groups = [aws_security_group.app_sg.id]
   }
+  
+  # Allow PostgreSQL traffic from any IPv4 address
+  ingress {
+    description = "PostgreSQL from any IPv4"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   egress {
     description = "Allow all outbound traffic"

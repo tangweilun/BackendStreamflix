@@ -35,6 +35,11 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_INSTANCE_TIMESTAMP=${DB_INSTANCE_TIMESTAMP:-$(date +%Y%m%d%H%M%S)}
+      # AWS credentials
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
 EOL
 
 # Configure Nginx as reverse proxy
@@ -87,15 +92,9 @@ if [ -z "$DB_INSTANCE_TIMESTAMP" ]; then
   log info "Generated timestamp for RDS instance: $DB_INSTANCE_TIMESTAMP"
 fi
 
-# Function to update appsettings.json with database connection string
-update_connection_string() {
-  log info "Updating database connection string in appsettings.json"
-  
-  # Check if environment variables are set
-  if [ -z "$DB_HOST" ] || [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
-    log warn "Database environment variables not set. Skipping connection string update."
-    return
-  fi
+# Function to update appsettings.json with database connection string and AWS credentials
+update_app_settings() {
+  log info "Updating appsettings.json with configuration values"
   
   # Find all appsettings.json files
   find . -name "appsettings*.json" | while read -r config_file; do
@@ -110,34 +109,92 @@ update_connection_string() {
     # Create a backup
     cp "$config_file" "${config_file}.bak"
     
-    # Extract host and port from DB_HOST (format: hostname:port)
-    DB_HOSTNAME=$(echo $DB_HOST | cut -d: -f1)
-    DB_PORT=$(echo $DB_HOST | cut -d: -f2)
-    
-    # If no port was found, use default PostgreSQL port
-    if [ "$DB_HOSTNAME" = "$DB_PORT" ]; then
-      DB_PORT="5432"
-    fi
-    
-    # Create PostgreSQL connection string
-    CONNECTION_STRING="Host=${DB_HOSTNAME};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
-    
-    # Update the connection string in the config file
-    # This handles both the case where ConnectionStrings already exists and where it doesn't
-    if grep -q "ConnectionStrings" "$config_file"; then
-      # ConnectionStrings section exists, update or add DefaultConnection
+    # Update database connection if variables are set
+    if [ ! -z "$DB_HOST" ] && [ ! -z "$DB_NAME" ] && [ ! -z "$DB_USER" ] && [ ! -z "$DB_PASSWORD" ]; then
+      # Extract host and port from DB_HOST (format: hostname:port)
+      DB_HOSTNAME=$(echo $DB_HOST | cut -d: -f1)
+      DB_PORT=$(echo $DB_HOST | cut -d: -f2)
+      
+      # If no port was found, use default PostgreSQL port
+      if [ "$DB_HOSTNAME" = "$DB_PORT" ]; then
+        DB_PORT="5432"
+      fi
+      
+      # Create PostgreSQL connection string
+      CONNECTION_STRING="Host=${DB_HOSTNAME};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
+      
+      log info "Updating database connection string"
+      # Update the connection string in the config file
       TMP_FILE=$(mktemp)
-      jq --arg conn "$CONNECTION_STRING" '.ConnectionStrings.DefaultConnection = $conn' "$config_file" > "$TMP_FILE"
+      jq --arg conn "$CONNECTION_STRING" '.connectionstrings.dbconnection = $conn' "$config_file" > "$TMP_FILE"
       mv "$TMP_FILE" "$config_file"
     else
-      # ConnectionStrings section doesn't exist, add it
-      TMP_FILE=$(mktemp)
-      jq --arg conn "$CONNECTION_STRING" '. + {"ConnectionStrings": {"DefaultConnection": $conn}}' "$config_file" > "$TMP_FILE"
-      mv "$TMP_FILE" "$config_file"
+      log warn "Database environment variables not set. Skipping connection string update."
     fi
     
-    log info "Updated connection string in $config_file"
+    # Update AWS credentials if variables are set
+    if [ ! -z "$AWS_ACCESS_KEY" ] && [ ! -z "$AWS_SECRET_KEY" ] && [ ! -z "$AWS_SESSION_TOKEN" ]; then
+      log info "Updating AWS credentials"
+      
+      TMP_FILE=$(mktemp)
+      jq --arg accesskey "$AWS_ACCESS_KEY" \
+         --arg secretkey "$AWS_SECRET_KEY" \
+         --arg sessiontoken "$AWS_SESSION_TOKEN" \
+         --arg region "${AWS_REGION:-us-east-1}" \
+         '.aws.accesskey = $accesskey | .aws.secretkey = $secretkey | .aws.sessiontoken = $sessiontoken | .aws.region = $region' \
+         "$config_file" > "$TMP_FILE"
+      mv "$TMP_FILE" "$config_file"
+    else
+      log warn "AWS credentials not set. Skipping AWS configuration update."
+    fi
+    
+    log info "Updated configuration in $config_file"
   done
+}
+
+# Function to run database migrations
+run_migrations() {
+  log info "Running database migrations"
+  
+  # Check if database environment variables are set
+  if [ -z "$DB_HOST" ] || [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+    log error "Database environment variables not set. Cannot run migrations."
+    return 1
+  fi
+  
+  # Install EF Core tools if not already installed
+  if ! command -v dotnet-ef &> /dev/null; then
+    log info "Installing Entity Framework Core tools..."
+    dotnet tool install --global dotnet-ef
+    export PATH="$PATH:$HOME/.dotnet/tools"
+  fi
+  
+  # Create migrations directory if it doesn't exist
+  mkdir -p Migrations
+  
+  # Set the connection string environment variable for EF Core
+  DB_HOSTNAME=$(echo $DB_HOST | cut -d: -f1)
+  DB_PORT=$(echo $DB_HOST | cut -d: -f2)
+  
+  # If no port was found, use default PostgreSQL port
+  if [ "$DB_HOSTNAME" = "$DB_PORT" ]; then
+    DB_PORT="5432"
+  fi
+  
+  # Create PostgreSQL connection string
+  CONNECTION_STRING="Host=${DB_HOSTNAME};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
+  export ConnectionStrings__DefaultConnection="$CONNECTION_STRING"
+  
+  # Run migrations
+  log info "Adding initial migration..."
+  if ! dotnet ef migrations add InitialCreate --context ApplicationDbContext; then
+    log warn "Migration may already exist. Continuing..."
+  fi
+  
+  log info "Updating database..."
+  dotnet ef database update --context ApplicationDbContext
+  
+  log info "Database migrations completed successfully"
 }
 
 # Create Dockerfile if not exists
@@ -146,6 +203,10 @@ if [ ! -f Dockerfile ]; then
   cat > Dockerfile << 'DOCKERFILE'
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
+
+# Install EF Core tools
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="${PATH}:/root/.dotnet/tools"
 
 # Copy csproj and restore dependencies
 COPY *.csproj ./ 
@@ -166,8 +227,16 @@ ENTRYPOINT ["dotnet", "Streamflix.dll"]
 DOCKERFILE
 fi
 
-# Update connection string in appsettings.json
-update_connection_string
+# Update appsettings.json with database connection string and AWS credentials
+update_app_settings
+
+# Run database migrations before building the Docker image
+log info "Checking if we should run migrations..."
+if [ ! -z "$DB_HOST" ] && [ ! -z "$DB_NAME" ] && [ ! -z "$DB_USER" ] && [ ! -z "$DB_PASSWORD" ]; then
+  run_migrations
+else
+  log warn "Database environment variables not set. Skipping migrations."
+fi
 
 # Build the Docker image
 log info "Building Docker image"
@@ -178,7 +247,7 @@ log info "Stopping existing containers"
 docker-compose down || true
 
 # Start the container with environment variables
-log info "Starting container with database configuration"
+log info "Starting container with configuration"
 docker-compose up -d
 
 # Check container status
@@ -204,11 +273,18 @@ cat > /home/$USER/README.txt << 'EOL'
 To deploy your .NET application:
 
 1. Upload your code to /app directory
-2. Set database environment variables (if needed):
+2. Set environment variables (if needed):
+   # Database configuration
    export DB_HOST="your-db-host:5432"
    export DB_NAME="your-db-name"
    export DB_USER="your-db-user"
    export DB_PASSWORD="your-db-password"
+   
+   # AWS credentials
+   export AWS_ACCESS_KEY="your-aws-access-key"
+   export AWS_SECRET_KEY="your-aws-secret-key"
+   export AWS_SESSION_TOKEN="your-aws-session-token"
+   export AWS_REGION="us-east-1"
 
 3. Run the deployment script:
    cd /app
