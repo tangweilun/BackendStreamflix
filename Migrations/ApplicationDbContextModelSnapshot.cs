@@ -229,6 +229,18 @@ namespace Streamflix.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "admin@gmail.com",
+                            IsAdmin = true,
+                            PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe",
+                            PhoneNumber = "011234567890",
+                            UserName = "admin"
+                        });
                 });
 
             modelBuilder.Entity("Streamflix.Model.UserSubscription", b =>
