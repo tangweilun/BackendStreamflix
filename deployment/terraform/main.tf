@@ -269,7 +269,7 @@ resource "aws_security_group" "rds_sg" {
 
 # Create RDS PostgreSQL instance
 resource "aws_db_instance" "postgres" {
-  identifier             = "${local.name_prefix}-db"
+  identifier             = "${local.name_prefix}-${timestamp()}-db"
   engine                 = "postgres"
   engine_version         = "17.4"  # Changed from 14.7 to 17.4 which is supported
   instance_class         = var.db_instance_class
