@@ -210,3 +210,110 @@ output "application_url" {
   description = "URL to access the application directly"
   value       = "http://${aws_instance.app_server.public_ip}:${var.app_port}"
 }
+
+# Add RDS PostgreSQL variables
+variable "db_instance_class" {
+  description = "RDS instance class"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "db_name" {
+  description = "PostgreSQL database name"
+  type        = string
+  default     = "streamflix"
+}
+
+variable "db_username" {
+  description = "PostgreSQL master username"
+  type        = string
+  default     = "postgres"
+}
+
+variable "db_password" {
+  description = "PostgreSQL master password"
+  type        = string
+  default     = "StreamflixDB2024!"  # In production, use a more secure method like AWS Secrets Manager
+  sensitive   = true
+}
+
+# Create a security group for RDS
+resource "aws_security_group" "rds_sg" {
+  name        = "${local.resource_name}-rds-sg"
+  description = "Security group for RDS PostgreSQL instance"
+
+  # Allow PostgreSQL traffic from the EC2 instance security group
+  ingress {
+    description     = "PostgreSQL from EC2"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app_sg.id]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.resource_name}-rds-sg"
+    }
+  )
+}
+
+# Create RDS PostgreSQL instance
+resource "aws_db_instance" "postgres" {
+  identifier             = "${local.name_prefix}-db"
+  engine                 = "postgres"
+  engine_version         = "17.4"  # Changed from 14.7 to 17.4 which is supported
+  instance_class         = var.db_instance_class
+  allocated_storage      = 20
+  max_allocated_storage  = 100
+  storage_type           = "gp2"
+  storage_encrypted      = true
+  db_name                = var.db_name
+  username               = var.db_username
+  password               = var.db_password
+  port                   = 5432
+  publicly_accessible    = false
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+  skip_final_snapshot    = true
+  apply_immediately      = true
+  backup_retention_period = 7
+  deletion_protection    = false  # Set to true for production
+
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.resource_name}-postgres"
+    }
+  )
+}
+
+# Add RDS outputs
+output "db_endpoint" {
+  description = "RDS PostgreSQL endpoint"
+  value       = aws_db_instance.postgres.endpoint
+}
+
+output "db_name" {
+  description = "RDS PostgreSQL database name"
+  value       = aws_db_instance.postgres.db_name
+}
+
+output "db_username" {
+  description = "RDS PostgreSQL master username"
+  value       = aws_db_instance.postgres.username
+}
+
+output "connection_string" {
+  description = "PostgreSQL connection string (without password)"
+  value       = "Host=${aws_db_instance.postgres.endpoint};Database=${aws_db_instance.postgres.db_name};Username=${aws_db_instance.postgres.username};Password=<password>"
+  sensitive   = false
+}

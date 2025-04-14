@@ -43,7 +43,7 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Actors", (string)null);
+                    b.ToTable("Actors");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Genre", b =>
@@ -60,7 +60,49 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Genres", (string)null);
+                    b.ToTable("Genres");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            GenreName = "Action"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            GenreName = "Comedy"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            GenreName = "Drama"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            GenreName = "Horror"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            GenreName = "Sci-Fi"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            GenreName = "Thriller"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            GenreName = "Documentary"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            GenreName = "Animation"
+                        });
                 });
 
             modelBuilder.Entity("Streamflix.Model.Streamflix.Model.PasswordResetToken", b =>
@@ -85,7 +127,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("PasswordResetTokens", (string)null);
+                    b.ToTable("PasswordResetTokens");
                 });
 
             modelBuilder.Entity("Streamflix.Model.SubscriptionPlan", b =>
@@ -119,7 +161,39 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SubscriptionPlans", (string)null);
+                    b.ToTable("SubscriptionPlans");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            FeaturesJson = "[\"SD Quality\",\"1 Screen\"]",
+                            IsActive = true,
+                            MaxStreams = 1,
+                            PlanName = "Basic",
+                            Price = 40.00m,
+                            Quality = "SD"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            FeaturesJson = "[\"HD Quality\",\"2 Screens\",\"Downloads\"]",
+                            IsActive = true,
+                            MaxStreams = 2,
+                            PlanName = "Standard",
+                            Price = 14.99m,
+                            Quality = "HD"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            FeaturesJson = "[\"4K Quality\",\"4 Screens\",\"Downloads\",\"No Ads\"]",
+                            IsActive = true,
+                            MaxStreams = 4,
+                            PlanName = "Premium",
+                            Price = 19.99m,
+                            Quality = "4K"
+                        });
                 });
 
             modelBuilder.Entity("Streamflix.Model.User", b =>
@@ -154,7 +228,19 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "admin@gmail.com",
+                            IsAdmin = true,
+                            PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe",
+                            PhoneNumber = "011234567890",
+                            UserName = "admin"
+                        });
                 });
 
             modelBuilder.Entity("Streamflix.Model.UserSubscription", b =>
@@ -191,7 +277,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserSubscription", (string)null);
+                    b.ToTable("UserSubscription");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Video", b =>
@@ -230,7 +316,7 @@ namespace Streamflix.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Videos", (string)null);
+                    b.ToTable("Videos");
                 });
 
             modelBuilder.Entity("Streamflix.Model.VideoCast", b =>
@@ -245,7 +331,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("ActorId");
 
-                    b.ToTable("VideoCasts", (string)null);
+                    b.ToTable("VideoCasts");
                 });
 
             modelBuilder.Entity("Streamflix.Model.VideoGenre", b =>
@@ -260,7 +346,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("GenreId");
 
-                    b.ToTable("VideoGenres", (string)null);
+                    b.ToTable("VideoGenres");
                 });
 
             modelBuilder.Entity("Streamflix.Model.WatchHistory", b =>
@@ -289,7 +375,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("VideoId");
 
-                    b.ToTable("WatchHistory", (string)null);
+                    b.ToTable("WatchHistory");
                 });
 
             modelBuilder.Entity("Streamflix.Model.WatchList", b =>
@@ -315,7 +401,7 @@ namespace Streamflix.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("WatchLists", (string)null);
+                    b.ToTable("WatchLists");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Streamflix.Model.PasswordResetToken", b =>
