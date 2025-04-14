@@ -112,7 +112,7 @@ namespace Streamflix.Data
                 IsAdmin = true, // Assuming your User model has an IsAdmin property
                 PhoneNumber = "011234567890",
                 // Other required non-nullable properties
-                DateOfBirth = new DateTime(2000, 1, 1),
+                DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe"
 
             };
