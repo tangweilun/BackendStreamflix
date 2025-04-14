@@ -167,31 +167,31 @@ namespace Streamflix.Migrations
                         new
                         {
                             Id = 1,
-                            FeaturesJson = "[\"SD Quality\",\"1 Screen\"]",
+                            FeaturesJson = "[\"Watch on 1 screen\",\"Unlimited access to movies and TV series\",\"SD quality\",\"Ad-free experience\",\"Cancel anytime\"]",
                             IsActive = true,
                             MaxStreams = 1,
                             PlanName = "Basic",
-                            Price = 40.00m,
+                            Price = 19.90m,
                             Quality = "SD"
                         },
                         new
                         {
                             Id = 2,
-                            FeaturesJson = "[\"HD Quality\",\"2 Screens\",\"Downloads\"]",
+                            FeaturesJson = "[\"Watch on 2 screens\",\"Unlimited access to movies and TV series\",\"HD quality\",\"Ad-free experience\",\"Cancel anytime\"]",
                             IsActive = true,
                             MaxStreams = 2,
                             PlanName = "Standard",
-                            Price = 14.99m,
+                            Price = 29.90m,
                             Quality = "HD"
                         },
                         new
                         {
                             Id = 3,
-                            FeaturesJson = "[\"4K Quality\",\"4 Screens\",\"Downloads\",\"No Ads\"]",
+                            FeaturesJson = "[\"Watch on 4 screens\",\"Unlimited access to movies and TV series\",\"4K quality\",\"Ad-free experience\",\"Cancel anytime\"]",
                             IsActive = true,
                             MaxStreams = 4,
                             PlanName = "Premium",
-                            Price = 19.99m,
+                            Price = 39.90m,
                             Quality = "4K"
                         });
                 });
