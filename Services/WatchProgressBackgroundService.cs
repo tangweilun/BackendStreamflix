@@ -29,12 +29,13 @@ namespace Streamflix.Services
                 {
                     if (_queue.GetQueueSize() > 0)
                     {
-                        using var scope = _scopeFactory.CreateScope();
-                        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                         var batch = _queue.DequeueBatch(BatchSize);
 
                         if (batch.Count > 0)
                         {
+                            using var scope = _scopeFactory.CreateScope();
+                            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
                             foreach (var history in batch)
                             {
                                 var existingHistory = await dbContext.WatchHistory
@@ -42,7 +43,7 @@ namespace Streamflix.Services
 
                                 if (existingHistory != null)
                                 {
-                                    existingHistory.CurrentPosition = history.CurrentPosition;
+                                    existingHistory.CurrentPosition = history.CurrentPosition ?? 0;
                                     existingHistory.LastUpdated = DateTime.UtcNow;
                                 }
                                 else
@@ -51,16 +52,16 @@ namespace Streamflix.Services
                                     {
                                         UserId = history.UserId,
                                         VideoId = history.VideoId,
-                                        CurrentPosition = history.CurrentPosition,
+                                        CurrentPosition = history.CurrentPosition ?? 0,
                                         LastUpdated = DateTime.UtcNow
                                     };
 
                                     dbContext.WatchHistory.Add(watchHistory);
                                 }
-
-                                await dbContext.SaveChangesAsync(stoppingToken);
-                                _logger.LogInformation($"Saved {batch.Count} watch history updates.");
                             }
+
+                            await dbContext.SaveChangesAsync(stoppingToken);
+                            _logger.LogInformation($"Saved {batch.Count} watch history updates.");
                         }
                     }
                 }
