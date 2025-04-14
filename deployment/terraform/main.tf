@@ -233,7 +233,7 @@ variable "db_username" {
 variable "db_password" {
   description = "PostgreSQL master password"
   type        = string
-  default     = "StreamflixDB2024!"  # In production, use a more secure method like AWS Secrets Manager
+  default     = "admin123"  # In production, use a more secure method like AWS Secrets Manager
   sensitive   = true
 }
 
@@ -269,7 +269,7 @@ resource "aws_security_group" "rds_sg" {
 
 # Create RDS PostgreSQL instance
 resource "aws_db_instance" "postgres" {
-  identifier             = "${local.name_prefix}-${timestamp()}-db"
+  identifier             = "${local.name_prefix}-${local.timestamp}-db"
   engine                 = "postgres"
   engine_version         = "17.4"  # Changed from 14.7 to 17.4 which is supported
   instance_class         = var.db_instance_class
@@ -281,7 +281,7 @@ resource "aws_db_instance" "postgres" {
   username               = var.db_username
   password               = var.db_password
   port                   = 5432
-  publicly_accessible    = false
+  publicly_accessible    = true
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
   skip_final_snapshot    = true
   apply_immediately      = true
