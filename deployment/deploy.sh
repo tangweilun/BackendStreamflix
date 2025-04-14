@@ -73,6 +73,7 @@ setup_directories() {
   
   # Ensure SSH directory exists
   mkdir -p ~/.ssh
+  chmod 700 ~/.ssh
   
   log info "Deployment directory: $DEPLOYMENT_DIR"
   log info "Project root: $PROJECT_ROOT"
