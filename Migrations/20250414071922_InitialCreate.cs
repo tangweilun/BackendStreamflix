@@ -271,9 +271,9 @@ namespace Streamflix.Migrations
                 columns: new[] { "Id", "FeaturesJson", "IsActive", "MaxStreams", "PlanName", "Price", "Quality" },
                 values: new object[,]
                 {
-                    { 1, "[\"SD Quality\",\"1 Screen\"]", true, 1, "Basic", 40.00m, "SD" },
-                    { 2, "[\"HD Quality\",\"2 Screens\",\"Downloads\"]", true, 2, "Standard", 14.99m, "HD" },
-                    { 3, "[\"4K Quality\",\"4 Screens\",\"Downloads\",\"No Ads\"]", true, 4, "Premium", 19.99m, "4K" }
+                    { 1, "[\"Watch on 1 screen\",\"Unlimited access to movies and TV series\",\"SD quality\",\"Ad-free experience\",\"Cancel anytime\"]", true, 1, "Basic", 19.90m, "SD" },
+                    { 2, "[\"Watch on 2 screens\",\"Unlimited access to movies and TV series\",\"HD quality\",\"Ad-free experience\",\"Cancel anytime\"]", true, 2, "Standard", 29.90m, "HD" },
+                    { 3, "[\"Watch on 4 screens\",\"Unlimited access to movies and TV series\",\"4K quality\",\"Ad-free experience\",\"Cancel anytime\"]", true, 4, "Premium", 39.90m, "4K" }
                 });
 
             migrationBuilder.InsertData(

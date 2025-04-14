@@ -62,8 +62,8 @@ namespace Streamflix.Data
                 {
                     Id = 1,
                     PlanName = "Basic",
-                    Price = 40.00m,
-                    FeaturesJson = JsonSerializer.Serialize(new[] { "SD Quality", "1 Screen" }),
+                    Price = 19.90m,
+                    FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 1 screen", "Unlimited access to movies and TV series", "SD quality", "Ad-free experience", "Cancel anytime" }),
                     Quality = "SD",
                     MaxStreams = 1,
                     IsActive = true
@@ -72,8 +72,8 @@ namespace Streamflix.Data
                 {
                     Id = 2,
                     PlanName = "Standard",
-                    Price = 14.99m,
-                    FeaturesJson = JsonSerializer.Serialize(new[] { "HD Quality", "2 Screens", "Downloads" }),
+                    Price = 29.90m,
+                    FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 2 screens", "Unlimited access to movies and TV series", "HD quality", "Ad-free experience", "Cancel anytime" }),
                     Quality = "HD",
                     MaxStreams = 2,
                     IsActive = true
@@ -82,8 +82,8 @@ namespace Streamflix.Data
                 {
                     Id = 3,
                     PlanName = "Premium",
-                    Price = 19.99m,
-                    FeaturesJson = JsonSerializer.Serialize(new[] { "4K Quality", "4 Screens", "Downloads", "No Ads" }),
+                    Price = 39.90m,
+                    FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 4 screens", "Unlimited access to movies and TV series", "4K quality", "Ad-free experience", "Cancel anytime" }),
                     Quality = "4K",
                     MaxStreams = 4,
                     IsActive = true
@@ -114,7 +114,6 @@ namespace Streamflix.Data
                 // Other required non-nullable properties
                 DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe"
-
             };
 
             modelBuilder.Entity<User>().HasData(adminUser);
