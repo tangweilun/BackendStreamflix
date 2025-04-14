@@ -34,6 +34,7 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      - DB_INSTANCE_TIMESTAMP=${DB_INSTANCE_TIMESTAMP:-$(date +%Y%m%d%H%M%S)}
 EOL
 
 # Configure Nginx as reverse proxy
@@ -78,6 +79,13 @@ log() {
     *)     echo "$message" ;;
   esac
 }
+
+# Generate timestamp for unique RDS instance name if not provided
+if [ -z "$DB_INSTANCE_TIMESTAMP" ]; then
+  DB_INSTANCE_TIMESTAMP=$(date +%Y%m%d%H%M%S)
+  export DB_INSTANCE_TIMESTAMP
+  log info "Generated timestamp for RDS instance: $DB_INSTANCE_TIMESTAMP"
+fi
 
 # Function to update appsettings.json with database connection string
 update_connection_string() {
