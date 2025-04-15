@@ -52,7 +52,7 @@ namespace Streamflix.Controllers
             }
 
             var activeSubscription = await _context.UserSubscription
-                .Where(us => us.UserId == uId && us.Status == SubscriptionStatus.Ongoing)
+                .Where(us => us.UserId == uId && (us.Status == SubscriptionStatus.Ongoing || us.Status == SubscriptionStatus.Cancelled ))
                 .FirstOrDefaultAsync();
 
             return Ok(activeSubscription);
@@ -232,7 +232,7 @@ namespace Streamflix.Controllers
                         }
                     }
                 }
-                else if (stripeEvent.Type == EventTypes.InvoicePaymentSucceeded) // Handle recurring payment for continous subscription
+                else if (stripeEvent.Type == EventTypes.InvoicePaymentSucceeded) // Handle recurring payment for continuous subscription
                 {
                     var invoice = stripeEvent.Data.Object as Invoice;
 
@@ -269,9 +269,9 @@ namespace Streamflix.Controllers
             }
         }
 
-        [HttpPost("cancel-subscription")]
+        [HttpPost("unsubscribe")]
         [Authorize]
-        public async Task<IActionResult> CancelSubscription([FromBody] UserSubscriptionDto subscriptionDto)
+        public async Task<IActionResult> Unsubscribe([FromBody] UserSubscriptionDto subscriptionDto)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 

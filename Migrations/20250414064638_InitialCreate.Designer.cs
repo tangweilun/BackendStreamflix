@@ -12,8 +12,8 @@ using Streamflix.Data;
 namespace Streamflix.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250326034435_ModifyFeaturesColumn")]
-    partial class ModifyFeaturesColumn
+    [Migration("20250414064638_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -42,90 +42,11 @@ namespace Streamflix.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.ToTable("Actors");
-                });
-
-            modelBuilder.Entity("Streamflix.Model.Content", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ContentUrl")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Duration")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("MaturityRating")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<DateTime>("ReleaseDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ThumbnailUrl")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Content");
-                });
-
-            modelBuilder.Entity("Streamflix.Model.ContentCast", b =>
-                {
-                    b.Property<int>("ContentId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ActorId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("ContentId", "ActorId");
-
-                    b.HasIndex("ActorId");
-
-                    b.ToTable("ContentCasts");
-                });
-
-            modelBuilder.Entity("Streamflix.Model.ContentGenre", b =>
-                {
-                    b.Property<int>("ContentId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("GenreId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("ContentId", "GenreId");
-
-                    b.HasIndex("GenreId");
-
-                    b.ToTable("ContentGenres");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Genre", b =>
@@ -136,14 +57,9 @@ namespace Streamflix.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("GenreName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -255,19 +171,19 @@ namespace Streamflix.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("PaymentStatus")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
                     b.Property<int>("PlanId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StripeSubscriptionId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
@@ -279,6 +195,104 @@ namespace Streamflix.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserSubscription");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.Video", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Duration")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("MaturityRating")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ReleaseDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Videos");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.VideoCast", b =>
+                {
+                    b.Property<int>("VideoId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ActorId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("VideoId", "ActorId");
+
+                    b.HasIndex("ActorId");
+
+                    b.ToTable("VideoCasts");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.VideoGenre", b =>
+                {
+                    b.Property<int>("VideoId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GenreId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("VideoId", "GenreId");
+
+                    b.HasIndex("GenreId");
+
+                    b.ToTable("VideoGenres");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.WatchHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CurrentPosition")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("VideoId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VideoId");
+
+                    b.ToTable("WatchHistory");
                 });
 
             modelBuilder.Entity("Streamflix.Model.WatchList", b =>
@@ -305,44 +319,6 @@ namespace Streamflix.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("WatchLists");
-                });
-
-            modelBuilder.Entity("Streamflix.Model.ContentCast", b =>
-                {
-                    b.HasOne("Streamflix.Model.Actor", "Actor")
-                        .WithMany()
-                        .HasForeignKey("ActorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Streamflix.Model.Content", "Content")
-                        .WithMany("ContentCasts")
-                        .HasForeignKey("ContentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Actor");
-
-                    b.Navigation("Content");
-                });
-
-            modelBuilder.Entity("Streamflix.Model.ContentGenre", b =>
-                {
-                    b.HasOne("Streamflix.Model.Content", "Content")
-                        .WithMany("ContentGenres")
-                        .HasForeignKey("ContentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Streamflix.Model.Genre", "Genre")
-                        .WithMany()
-                        .HasForeignKey("GenreId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Content");
-
-                    b.Navigation("Genre");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Streamflix.Model.PasswordResetToken", b =>
@@ -375,9 +351,66 @@ namespace Streamflix.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Streamflix.Model.VideoCast", b =>
+                {
+                    b.HasOne("Streamflix.Model.Actor", "Actor")
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Streamflix.Model.Video", "Video")
+                        .WithMany("VideoCasts")
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Actor");
+
+                    b.Navigation("Video");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.VideoGenre", b =>
+                {
+                    b.HasOne("Streamflix.Model.Genre", "Genre")
+                        .WithMany("VideoGenres")
+                        .HasForeignKey("GenreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Streamflix.Model.Video", "Video")
+                        .WithMany("VideoGenres")
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Genre");
+
+                    b.Navigation("Video");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.WatchHistory", b =>
+                {
+                    b.HasOne("Streamflix.Model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Streamflix.Model.Video", "Video")
+                        .WithMany("WatchHistory")
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Video");
+                });
+
             modelBuilder.Entity("Streamflix.Model.WatchList", b =>
                 {
-                    b.HasOne("Streamflix.Model.Content", "Content")
+                    b.HasOne("Streamflix.Model.Video", "Content")
                         .WithMany("WatchLists")
                         .HasForeignKey("ContentId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -394,18 +427,25 @@ namespace Streamflix.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Streamflix.Model.Content", b =>
+            modelBuilder.Entity("Streamflix.Model.Genre", b =>
                 {
-                    b.Navigation("ContentCasts");
-
-                    b.Navigation("ContentGenres");
-
-                    b.Navigation("WatchLists");
+                    b.Navigation("VideoGenres");
                 });
 
             modelBuilder.Entity("Streamflix.Model.SubscriptionPlan", b =>
                 {
                     b.Navigation("UserSubscriptions");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.Video", b =>
+                {
+                    b.Navigation("VideoCasts");
+
+                    b.Navigation("VideoGenres");
+
+                    b.Navigation("WatchHistory");
+
+                    b.Navigation("WatchLists");
                 });
 #pragma warning restore 612, 618
         }
