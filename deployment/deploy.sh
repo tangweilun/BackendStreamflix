@@ -73,6 +73,7 @@ setup_directories() {
   
   # Ensure SSH directory exists
   mkdir -p ~/.ssh
+  chmod 700 ~/.ssh
   
   log info "Deployment directory: $DEPLOYMENT_DIR"
   log info "Project root: $PROJECT_ROOT"
@@ -93,6 +94,12 @@ setup_aws_credentials() {
   export AWS_ACCESS_KEY_ID
   export AWS_SECRET_ACCESS_KEY
   export AWS_SESSION_TOKEN
+  
+  # Save credentials for passing to EC2 instance
+  echo "AWS_ACCESS_KEY=$AWS_ACCESS_KEY_ID" >> "$DEPLOYMENT_DIR/.deployment_vars"
+  echo "AWS_SECRET_KEY=$AWS_SECRET_ACCESS_KEY" >> "$DEPLOYMENT_DIR/.deployment_vars"
+  echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> "$DEPLOYMENT_DIR/.deployment_vars"
+  echo "AWS_REGION=us-east-1" >> "$DEPLOYMENT_DIR/.deployment_vars"
   
   # Verify credentials
   log info "Verifying AWS credentials..."
@@ -167,8 +174,21 @@ provision_infrastructure() {
     exit 1
   fi
   
-  log info "EC2 instance deployed with IP: $INSTANCE_IP"
+  # Get database information
+  DB_HOST=$(terraform output -raw db_endpoint 2>/dev/null)
+  DB_NAME=$(terraform output -raw db_name 2>/dev/null)
+  DB_USER=$(terraform output -raw db_username 2>/dev/null)
+  DB_PASSWORD=$(grep -o 'default\s*=\s*"[^"]*"' ../terraform/main.tf | grep db_password | cut -d'"' -f2)
+  
+  # Save deployment variables
   echo "INSTANCE_IP=$INSTANCE_IP" > "$DEPLOYMENT_DIR/.deployment_vars"
+  echo "DB_HOST=$DB_HOST" >> "$DEPLOYMENT_DIR/.deployment_vars"
+  echo "DB_NAME=$DB_NAME" >> "$DEPLOYMENT_DIR/.deployment_vars"
+  echo "DB_USER=$DB_USER" >> "$DEPLOYMENT_DIR/.deployment_vars"
+  echo "DB_PASSWORD=$DB_PASSWORD" >> "$DEPLOYMENT_DIR/.deployment_vars"
+  
+  log info "EC2 instance deployed with IP: $INSTANCE_IP"
+  log info "Database endpoint: $DB_HOST"
 }
 
 # Function to prepare the application package

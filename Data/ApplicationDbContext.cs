@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Streamflix.Model;
 using Streamflix.Model.Streamflix.Model;
 using System.Text.Json;
@@ -28,7 +29,7 @@ namespace Streamflix.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure relationship between User and PasswordResetToken
+            // Existing relationship configurations
             modelBuilder.Entity<PasswordResetToken>()
                 .HasOne(p => p.User)
                 .WithMany()
@@ -36,10 +37,10 @@ namespace Streamflix.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<VideoGenre>()
-                .HasKey(cg => new { cg.VideoId, cg.GenreId }); // Composite Key
+                .HasKey(cg => new { cg.VideoId, cg.GenreId });
 
             modelBuilder.Entity<VideoCast>()
-                .HasKey(cc => new { cc.VideoId, cc.ActorId }); // Composite Key
+                .HasKey(cc => new { cc.VideoId, cc.ActorId });
 
             modelBuilder.Entity<SubscriptionPlan>()
                 .Property(e => e.FeaturesJson)
@@ -48,6 +49,81 @@ namespace Streamflix.Data
             modelBuilder.Entity<UserSubscription>()
                 .Property(u => u.Status)
                 .HasConversion<string>();
+
+            // Seed data
+            SeedData(modelBuilder);
         }
-    }
+
+        private void SeedData(ModelBuilder modelBuilder)
+        {
+            // Seed subscription plans
+            modelBuilder.Entity<SubscriptionPlan>().HasData(
+                new SubscriptionPlan
+                {
+                    Id = 1,
+                    PlanName = "Basic",
+                    Price = 19.90m,
+                    FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 1 screen", "Unlimited access to movies and TV series", "SD quality", "Ad-free experience", "Cancel anytime" }),
+                    Quality = "SD",
+                    MaxStreams = 1,
+                    IsActive = true
+                },
+                new SubscriptionPlan
+                {
+                    Id = 2,
+                    PlanName = "Standard",
+                    Price = 29.90m,
+                    FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 2 screens", "Unlimited access to movies and TV series", "HD quality", "Ad-free experience", "Cancel anytime" }),
+                    Quality = "HD",
+                    MaxStreams = 2,
+                    IsActive = true
+                },
+                new SubscriptionPlan
+                {
+                    Id = 3,
+                    PlanName = "Premium",
+                    Price = 39.90m,
+                    FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 4 screens", "Unlimited access to movies and TV series", "4K quality", "Ad-free experience", "Cancel anytime" }),
+                    Quality = "4K",
+                    MaxStreams = 4,
+                    IsActive = true
+                }
+            );
+
+            // Seed genres
+            modelBuilder.Entity<Genre>().HasData(
+                new Genre { Id = 1, GenreName = "Action" },
+                new Genre { Id = 2, GenreName = "Comedy" },
+                new Genre { Id = 3, GenreName = "Drama" },
+                new Genre { Id = 4, GenreName = "Horror" },
+                new Genre { Id = 5, GenreName = "Sci-Fi" },
+                new Genre { Id = 6, GenreName = "Thriller" },
+                new Genre { Id = 7, GenreName = "Documentary" },
+                new Genre { Id = 8, GenreName = "Animation" }
+            );
+
+            // Seed admin user
+            var passwordHasher = new PasswordHasher<User>();
+            var adminUser = new User
+            {
+                Id = 1, // Set a specific ID for seeding
+                UserName = "admin",
+                Email = "admin@gmail.com",
+                IsAdmin = true, // Assuming your User model has an IsAdmin property
+                PhoneNumber = "011234567890",
+                // Other required non-nullable properties
+                DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe"
+            };
+
+            modelBuilder.Entity<User>().HasData(adminUser);
+
+
+
+        }
+
+        }
+
+
+
 }
