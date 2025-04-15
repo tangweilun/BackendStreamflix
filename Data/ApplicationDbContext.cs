@@ -24,6 +24,7 @@ namespace Streamflix.Data
         public DbSet<VideoGenre> VideoGenres { get; set; }
         public DbSet<Actor> Actors { get; set; }
         public DbSet<VideoCast> VideoCasts { get; set; }
+        public DbSet<FavoriteVideo> FavoriteVideos { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -50,6 +51,16 @@ namespace Streamflix.Data
                 .Property(u => u.Status)
                 .HasConversion<string>();
 
+            modelBuilder.Entity<Video>()
+             .HasIndex(v => v.Title)
+             .IsUnique();
+
+            // Existing FavoriteVideo configuration
+            modelBuilder.Entity<FavoriteVideo>()
+                .HasOne(f => f.Video)
+                .WithMany()
+                .HasForeignKey(f => f.VideoTitle)
+                .HasPrincipalKey(v => v.Title);
             // Seed data
             SeedData(modelBuilder);
         }
@@ -103,7 +114,6 @@ namespace Streamflix.Data
             );
 
             // Seed admin user
-            var passwordHasher = new PasswordHasher<User>();
             var adminUser = new User
             {
                 Id = 1, // Set a specific ID for seeding
@@ -118,11 +128,22 @@ namespace Streamflix.Data
 
             modelBuilder.Entity<User>().HasData(adminUser);
 
+            var clientUser = new User
+            {
+                Id = 2,  
+                UserName = "client",
+                Email = "client@gmail.com",
+                IsAdmin = false,  // This should probably be false for a client
+                PhoneNumber = "011234567890",
+                DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                PasswordHash = "$2a$11$YhlzICWWwHYr45hL3hvdpeoe10DHG0ebxjk7VdtqQ0nOjLB1c9xYu"
+            };
+            modelBuilder.Entity<User>().HasData(clientUser);
 
 
         }
 
-        }
+    }
 
 
 
