@@ -2,9 +2,9 @@
 
 namespace Streamflix.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/helloworld")]
     [ApiController]
-    public class HellowWorldController : ControllerBase
+    public class HelloWorldController : ControllerBase
     {
         // GET api/helloworld
         [HttpGet]
