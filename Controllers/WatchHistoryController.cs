@@ -10,13 +10,13 @@ using System.Security.Claims;
 namespace Streamflix.Controllers
 {
     [ApiController]
-    [Route("api/watch")]
-    public class WatchController : ControllerBase
+    [Route("api/watch-history")]
+    public class WatchHistoryController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
         private readonly WatchHistoryQueue _queue;
 
-        public WatchController(ApplicationDbContext context, WatchHistoryQueue queue)
+        public WatchHistoryController(ApplicationDbContext context, WatchHistoryQueue queue)
         {
             _context = context;
             _queue = queue;
@@ -45,15 +45,6 @@ namespace Streamflix.Controllers
                 return BadRequest("Invalid user or video title.");
             }
 
-            //var video = await _context.Videos
-            //    .Where(v => v.Title == videoTitle)
-            //    .FirstOrDefaultAsync();
-
-            //if (video == null)
-            //{
-            //    return NotFound("Video not found.");
-            //}
-
             var progress = await _context.WatchHistory
                 .Where(h => h.UserId == userId && h.VideoTitle == videoTitle)
                 .FirstOrDefaultAsync();
@@ -61,6 +52,21 @@ namespace Streamflix.Controllers
             var position = progress?.CurrentPosition ?? 0;
 
             return Ok(new { currentPosition = position });
+        }
+
+        [HttpGet("get-all-history")]
+        public async Task<ActionResult<List<WatchHistory>>> GetWatchHistories([FromQuery] int userId)
+        {
+            if (userId <= 0)
+            {
+                return BadRequest("Invalid user ID");
+            }
+
+            var history = await _context.WatchHistory
+                .Where(f => f.UserId == userId)
+                .ToListAsync();
+
+            return history;
         }
     }
 }
