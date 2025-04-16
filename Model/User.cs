@@ -21,6 +21,9 @@ namespace Streamflix.Model
         [Required]
         public string PhoneNumber { get; set; }
 
+        [Required]
+        public DateTime RegisteredOn { get; set; }
+
         public bool IsAdmin { get; set; } = false;
     }
 }

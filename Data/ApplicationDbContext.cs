@@ -116,14 +116,14 @@ namespace Streamflix.Data
             // Seed admin user
             var adminUser = new User
             {
-                Id = 1, // Set a specific ID for seeding
+                Id = 1,
                 UserName = "admin",
                 Email = "admin@gmail.com",
-                IsAdmin = true, // Assuming your User model has an IsAdmin property
+                IsAdmin = true,
                 PhoneNumber = "011234567890",
-                // Other required non-nullable properties
                 DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe"
+                PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe",
+                RegisteredOn = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             };
 
             modelBuilder.Entity<User>().HasData(adminUser);
@@ -133,18 +133,13 @@ namespace Streamflix.Data
                 Id = 2,  
                 UserName = "client",
                 Email = "client@gmail.com",
-                IsAdmin = false,  // This should probably be false for a client
+                IsAdmin = false,
                 PhoneNumber = "011234567890",
                 DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                PasswordHash = "$2a$11$YhlzICWWwHYr45hL3hvdpeoe10DHG0ebxjk7VdtqQ0nOjLB1c9xYu"
+                PasswordHash = "$2a$11$YhlzICWWwHYr45hL3hvdpeoe10DHG0ebxjk7VdtqQ0nOjLB1c9xYu",
+                RegisteredOn = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             };
             modelBuilder.Entity<User>().HasData(clientUser);
-
-
         }
-
     }
-
-
-
 }

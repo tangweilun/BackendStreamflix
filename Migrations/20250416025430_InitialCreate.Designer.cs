@@ -12,7 +12,7 @@ using Streamflix.Data;
 namespace Streamflix.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250414071922_InitialCreate")]
+    [Migration("20250416025430_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -47,6 +47,33 @@ namespace Streamflix.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Actors");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.FavoriteVideo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DateAdded")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("VideoTitle")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VideoTitle");
+
+                    b.ToTable("FavoriteVideos");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Genre", b =>
@@ -225,6 +252,9 @@ namespace Streamflix.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime>("RegisteredOn")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -242,7 +272,19 @@ namespace Streamflix.Migrations
                             IsAdmin = true,
                             PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe",
                             PhoneNumber = "011234567890",
+                            RegisteredOn = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             UserName = "admin"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "client@gmail.com",
+                            IsAdmin = false,
+                            PasswordHash = "$2a$11$YhlzICWWwHYr45hL3hvdpeoe10DHG0ebxjk7VdtqQ0nOjLB1c9xYu",
+                            PhoneNumber = "011234567890",
+                            RegisteredOn = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UserName = "client"
                         });
                 });
 
@@ -318,6 +360,9 @@ namespace Streamflix.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Title")
+                        .IsUnique();
 
                     b.ToTable("Videos");
                 });
@@ -405,6 +450,26 @@ namespace Streamflix.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("WatchLists");
+                });
+
+            modelBuilder.Entity("Streamflix.Model.FavoriteVideo", b =>
+                {
+                    b.HasOne("Streamflix.Model.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Streamflix.Model.Video", "Video")
+                        .WithMany()
+                        .HasForeignKey("VideoTitle")
+                        .HasPrincipalKey("Title")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Video");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Streamflix.Model.PasswordResetToken", b =>
