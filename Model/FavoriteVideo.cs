@@ -5,7 +5,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace Streamflix.Model
 {
     public class FavoriteVideo
-    
     {
         [Key]
         public int Id { get; set; }

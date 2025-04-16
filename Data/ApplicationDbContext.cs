@@ -52,16 +52,25 @@ namespace Streamflix.Data
                 .HasConversion<string>();
 
             modelBuilder.Entity<Video>()
-             .HasIndex(v => v.Title)
-             .IsUnique();
+                .HasIndex(v => v.Title)
+                .IsUnique();
 
-            // Existing FavoriteVideo configuration
+            modelBuilder.Entity<Video>()
+                .HasAlternateKey(v => v.Title);
+
             modelBuilder.Entity<FavoriteVideo>()
                 .HasOne(f => f.Video)
                 .WithMany()
                 .HasForeignKey(f => f.VideoTitle)
                 .HasPrincipalKey(v => v.Title);
-            // Seed data
+
+            modelBuilder.Entity<WatchHistory>()
+                .HasOne(h => h.Video)
+                .WithMany()
+                .HasForeignKey(h => h.VideoTitle)
+                .HasPrincipalKey(v => v.Title)
+                .OnDelete(DeleteBehavior.Cascade);
+
             SeedData(modelBuilder);
         }
 
@@ -131,7 +140,7 @@ namespace Streamflix.Data
             var clientUser = new User
             {
                 Id = 2,  
-                UserName = "client",
+                UserName = "Client",
                 Email = "client@gmail.com",
                 IsAdmin = false,
                 PhoneNumber = "011234567890",

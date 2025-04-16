@@ -249,6 +249,9 @@ namespace Streamflix.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime>("RegisteredOn")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -266,6 +269,7 @@ namespace Streamflix.Migrations
                             IsAdmin = true,
                             PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe",
                             PhoneNumber = "011234567890",
+                            RegisteredOn = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             UserName = "admin"
                         },
                         new
@@ -276,7 +280,8 @@ namespace Streamflix.Migrations
                             IsAdmin = false,
                             PasswordHash = "$2a$11$YhlzICWWwHYr45hL3hvdpeoe10DHG0ebxjk7VdtqQ0nOjLB1c9xYu",
                             PhoneNumber = "011234567890",
-                            UserName = "client"
+                            RegisteredOn = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UserName = "Client"
                         });
                 });
 
@@ -406,14 +411,15 @@ namespace Streamflix.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("VideoId")
-                        .HasColumnType("integer");
+                    b.Property<string>("VideoTitle")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("VideoId");
+                    b.HasIndex("VideoTitle");
 
                     b.ToTable("WatchHistory");
                 });
@@ -541,8 +547,9 @@ namespace Streamflix.Migrations
                         .IsRequired();
 
                     b.HasOne("Streamflix.Model.Video", "Video")
-                        .WithMany("WatchHistory")
-                        .HasForeignKey("VideoId")
+                        .WithMany()
+                        .HasForeignKey("VideoTitle")
+                        .HasPrincipalKey("Title")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -585,8 +592,6 @@ namespace Streamflix.Migrations
                     b.Navigation("VideoCasts");
 
                     b.Navigation("VideoGenres");
-
-                    b.Navigation("WatchHistory");
 
                     b.Navigation("WatchLists");
                 });
