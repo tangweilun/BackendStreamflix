@@ -42,15 +42,24 @@ namespace Streamflix.Controllers
         }
 
         [HttpPost("get-progress")]
-        public async Task<IActionResult> GetProgress([FromBody] WatchHistoryDto historyDto)
+        public async Task<IActionResult> GetProgress([FromQuery] int userId, [FromQuery] string videoTitle)
         {
-            if (historyDto.UserId <= 0 || historyDto.VideoId <= 0)
+            if (userId <= 0 || string.IsNullOrEmpty(videoTitle))
             {
-                return BadRequest("Invalid user or video ID.");
+                return BadRequest("Invalid user or video title.");
+            }
+
+            var video = await _context.Videos
+                .Where(v => v.Title == videoTitle)
+                .FirstOrDefaultAsync();
+
+            if (video == null)
+            {
+                return NotFound("Video not found.");
             }
 
             var progress = await _context.WatchHistory
-                .Where(h => h.UserId == historyDto.UserId && h.VideoId == historyDto.VideoId)
+                .Where(h => h.UserId == userId && h.VideoId == video.Id)
                 .FirstOrDefaultAsync();
 
             if (progress == null)
