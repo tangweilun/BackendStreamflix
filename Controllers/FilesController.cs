@@ -12,7 +12,7 @@ using Streamflix.DTOs;
 
 namespace Streamflix.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/files")]
     [ApiController]
     [EnableCors("AllowSpecificOrigin")]
     public class FilesController : ControllerBase
