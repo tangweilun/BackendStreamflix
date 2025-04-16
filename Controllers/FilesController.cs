@@ -254,7 +254,7 @@ namespace Streamflix.Controllers
         [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> WatchVideoAsync(string showName)
         {
-            string bucketName = "streamflixtest";
+            string bucketName = "streamflixbucket";
             string[] extensions = { ".mp4", ".mov", ".webm" }; // Add any other supported formats
 
             var episodeList = new List<object>();
