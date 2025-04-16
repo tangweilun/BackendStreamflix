@@ -38,7 +38,7 @@ namespace Streamflix.Services
                             foreach (var history in batch)
                             {
                                 var existingHistory = await dbContext.WatchHistory
-                                    .FirstOrDefaultAsync(h => h.UserId == history.UserId && h.VideoId == history.VideoId);
+                                    .FirstOrDefaultAsync(h => h.UserId == history.UserId && h.VideoTitle == history.VideoTitle);
 
                                 if (existingHistory != null)
                                 {
@@ -50,7 +50,7 @@ namespace Streamflix.Services
                                     var watchHistory = new WatchHistory
                                     {
                                         UserId = history.UserId,
-                                        VideoId = history.VideoId,
+                                        VideoTitle = history.VideoTitle,
                                         CurrentPosition = history.CurrentPosition,
                                         LastUpdated = DateTime.UtcNow
                                     };
