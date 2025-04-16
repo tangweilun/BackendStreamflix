@@ -92,6 +92,18 @@ if [ -z "$DB_INSTANCE_TIMESTAMP" ]; then
   log info "Generated timestamp for RDS instance: $DB_INSTANCE_TIMESTAMP"
 fi
 
+# Function to print the contents of appsettings.json files
+print_appsettings() {
+  log info "Printing contents of appsettings.json files:"
+  
+  find . -name "appsettings*.json" | while read -r config_file; do
+    log info "Contents of $config_file:"
+    log info "----------------------------------------"
+    cat "$config_file" | jq '.' || cat "$config_file"
+    log info "----------------------------------------"
+  done
+}
+
 # Function to update appsettings.json with database connection string and AWS credentials
 update_app_settings() {
   log info "Updating appsettings.json with configuration values"
@@ -150,6 +162,9 @@ update_app_settings() {
     
     log info "Updated configuration in $config_file"
   done
+  
+  # Print the updated configuration files
+  print_appsettings
 }
 
 # Function to run database migrations
@@ -162,17 +177,7 @@ run_migrations() {
     return 1
   fi
   
-  # Install EF Core tools if not already installed
-  if ! command -v dotnet-ef &> /dev/null; then
-    log info "Installing Entity Framework Core tools..."
-    dotnet tool install --global dotnet-ef
-    export PATH="$PATH:$HOME/.dotnet/tools"
-  fi
-  
-  # Create migrations directory if it doesn't exist
-  mkdir -p Migrations
-  
-  # Set the connection string environment variable for EF Core
+  # Extract host and port from DB_HOST
   DB_HOSTNAME=$(echo $DB_HOST | cut -d: -f1)
   DB_PORT=$(echo $DB_HOST | cut -d: -f2)
   
@@ -183,16 +188,38 @@ run_migrations() {
   
   # Create PostgreSQL connection string
   CONNECTION_STRING="Host=${DB_HOSTNAME};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
-  export ConnectionStrings__DefaultConnection="$CONNECTION_STRING"
   
-  # Run migrations
-  log info "Adding initial migration..."
-  if ! dotnet ef migrations add InitialCreate --context ApplicationDbContext; then
-    log warn "Migration may already exist. Continuing..."
-  fi
+  # Run migrations using Docker
+  log info "Running migrations using Docker..."
   
-  log info "Updating database..."
-  dotnet ef database update --context ApplicationDbContext
+  # Create a temporary Dockerfile for migrations
+  cat > Dockerfile.migrations << 'EOL'
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+
+WORKDIR /app
+
+# Install EF Core tools
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
+# Copy application files
+COPY . .
+
+# Set environment variables
+ENV ConnectionStrings__DefaultConnection=""
+
+# Run migrations
+ENTRYPOINT ["sh", "-c", "dotnet ef migrations add InitialCreate --context ApplicationDbContext && dotnet ef database update --context ApplicationDbContext"]
+EOL
+
+  # Build and run the migrations container
+  log info "Building migrations Docker image..."
+  docker build -t streamflix-migrations -f Dockerfile.migrations .
+  
+  log info "Running migrations..."
+  docker run --rm \
+    -e ConnectionStrings__DefaultConnection="$CONNECTION_STRING" \
+    streamflix-migrations
   
   log info "Database migrations completed successfully"
 }

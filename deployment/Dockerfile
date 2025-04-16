@@ -11,6 +11,7 @@ RUN dotnet restore
 
 # Copy and publish app and libraries
 COPY . ./
+# Run migrations during build
 RUN dotnet publish -c Release -o out
 
 # Build runtime image

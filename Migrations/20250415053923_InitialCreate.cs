@@ -149,6 +149,33 @@ namespace Streamflix.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "FavoriteVideos",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    UserId = table.Column<int>(type: "integer", nullable: false),
+                    VideoId = table.Column<int>(type: "integer", nullable: false),
+                    DateAdded = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FavoriteVideos", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_FavoriteVideos_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_FavoriteVideos_Videos_VideoId",
+                        column: x => x.VideoId,
+                        principalTable: "Videos",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "VideoCasts",
                 columns: table => new
                 {
@@ -279,7 +306,21 @@ namespace Streamflix.Migrations
             migrationBuilder.InsertData(
                 table: "Users",
                 columns: new[] { "Id", "DateOfBirth", "Email", "IsAdmin", "PasswordHash", "PhoneNumber", "UserName" },
-                values: new object[] { 1, new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "admin@gmail.com", true, "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe", "011234567890", "admin" });
+                values: new object[,]
+                {
+                    { 1, new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "admin@gmail.com", true, "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe", "011234567890", "admin" },
+                    { 2, new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "client@gmail.com", false, "$2a$11$YhlzICWWwHYr45hL3hvdpeoe10DHG0ebxjk7VdtqQ0nOjLB1c9xYu", "011234567890", "client" }
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FavoriteVideos_UserId",
+                table: "FavoriteVideos",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FavoriteVideos_VideoId",
+                table: "FavoriteVideos",
+                column: "VideoId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PasswordResetTokens_UserId",
@@ -330,6 +371,9 @@ namespace Streamflix.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "FavoriteVideos");
+
             migrationBuilder.DropTable(
                 name: "PasswordResetTokens");
 

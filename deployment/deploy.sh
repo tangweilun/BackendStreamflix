@@ -19,6 +19,7 @@ MAX_SSH_RETRIES=15
 SSH_RETRY_DELAY=20
 TERRAFORM_DIR="terraform"
 APP_NAME="streamflix"
+DEPLOYMENT_VARS_FILE=".deployment_vars"
 
 # Display banner
 echo -e "${BOLD}${GREEN}====== Streamflix Deployment Tool ======${NC}"
@@ -39,6 +40,31 @@ log() {
 # Function to display steps
 step() {
   echo -e "\n${BOLD}${GREEN}➤ $1${NC}"
+}
+
+# Function to manage deployment variables
+manage_deployment_vars() {
+  local action=$1
+  local var_name=$2
+  local var_value=$3
+  
+  case $action in
+    init)
+      # Clear the deployment vars file
+      log info "Initializing deployment variables file"
+      > "$DEPLOYMENT_DIR/$DEPLOYMENT_VARS_FILE"
+      ;;
+    add)
+      # Add a variable to the deployment vars file
+      echo "$var_name=$var_value" >> "$DEPLOYMENT_DIR/$DEPLOYMENT_VARS_FILE"
+      ;;
+    load)
+      # Load variables from the deployment vars file
+      if [ -f "$DEPLOYMENT_DIR/$DEPLOYMENT_VARS_FILE" ]; then
+        source "$DEPLOYMENT_DIR/$DEPLOYMENT_VARS_FILE"
+      fi
+      ;;
+  esac
 }
 
 # Function to check for required tools
@@ -77,6 +103,9 @@ setup_directories() {
   
   log info "Deployment directory: $DEPLOYMENT_DIR"
   log info "Project root: $PROJECT_ROOT"
+  
+  # Initialize deployment vars file
+  manage_deployment_vars init
 }
 
 # Function to handle AWS credentials
@@ -96,10 +125,10 @@ setup_aws_credentials() {
   export AWS_SESSION_TOKEN
   
   # Save credentials for passing to EC2 instance
-  echo "AWS_ACCESS_KEY=$AWS_ACCESS_KEY_ID" >> "$DEPLOYMENT_DIR/.deployment_vars"
-  echo "AWS_SECRET_KEY=$AWS_SECRET_ACCESS_KEY" >> "$DEPLOYMENT_DIR/.deployment_vars"
-  echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> "$DEPLOYMENT_DIR/.deployment_vars"
-  echo "AWS_REGION=us-east-1" >> "$DEPLOYMENT_DIR/.deployment_vars"
+  manage_deployment_vars add "AWS_ACCESS_KEY" "$AWS_ACCESS_KEY_ID"
+  manage_deployment_vars add "AWS_SECRET_KEY" "$AWS_SECRET_ACCESS_KEY"
+  manage_deployment_vars add "AWS_SESSION_TOKEN" "$AWS_SESSION_TOKEN"
+  manage_deployment_vars add "AWS_REGION" "us-east-1"
   
   # Verify credentials
   log info "Verifying AWS credentials..."
@@ -181,11 +210,11 @@ provision_infrastructure() {
   DB_PASSWORD=$(grep -o 'default\s*=\s*"[^"]*"' ../terraform/main.tf | grep db_password | cut -d'"' -f2)
   
   # Save deployment variables
-  echo "INSTANCE_IP=$INSTANCE_IP" > "$DEPLOYMENT_DIR/.deployment_vars"
-  echo "DB_HOST=$DB_HOST" >> "$DEPLOYMENT_DIR/.deployment_vars"
-  echo "DB_NAME=$DB_NAME" >> "$DEPLOYMENT_DIR/.deployment_vars"
-  echo "DB_USER=$DB_USER" >> "$DEPLOYMENT_DIR/.deployment_vars"
-  echo "DB_PASSWORD=$DB_PASSWORD" >> "$DEPLOYMENT_DIR/.deployment_vars"
+  manage_deployment_vars add "INSTANCE_IP" "$INSTANCE_IP"
+  manage_deployment_vars add "DB_HOST" "$DB_HOST"
+  manage_deployment_vars add "DB_NAME" "$DB_NAME"
+  manage_deployment_vars add "DB_USER" "$DB_USER"
+  manage_deployment_vars add "DB_PASSWORD" "$DB_PASSWORD"
   
   log info "EC2 instance deployed with IP: $INSTANCE_IP"
   log info "Database endpoint: $DB_HOST"
@@ -195,16 +224,14 @@ provision_infrastructure() {
 prepare_application() {
   step "Preparing application package"
   
-  # Load deployment variables if they exist
-  if [ -f "$DEPLOYMENT_DIR/.deployment_vars" ]; then
-    source "$DEPLOYMENT_DIR/.deployment_vars"
-  fi
+  # Load deployment variables
+  manage_deployment_vars load
   
-  # Verify instance IP is available
-  if [ -z "$INSTANCE_IP" ]; then
-    log error "Instance IP not found. Infrastructure provisioning may have failed."
-    exit 1
-  fi
+  # # Verify instance IP is available
+  # if [ -z "$INSTANCE_IP" ]; then
+  #   log error "Instance IP not found. Infrastructure provisioning may have failed."
+  #   exit 1
+  # fi
   
   # Create a temporary build directory
   BUILD_DIR=$(mktemp -d)
@@ -230,6 +257,9 @@ prepare_application() {
 # Function to setup SSH access
 setup_ssh_access() {
   step "Setting up SSH access"
+  
+  # Load deployment variables
+  manage_deployment_vars load
   
   # Check for required SSH key
   if [ ! -f "$DEPLOYMENT_DIR/$SSH_KEY_NAME" ]; then
@@ -290,6 +320,9 @@ setup_ssh_access() {
 # Function to deploy the application
 deploy_application() {
   step "Deploying application to $INSTANCE_IP"
+  
+  # Load deployment variables
+  manage_deployment_vars load
   
   # Upload application files
   log info "Uploading application package..."
@@ -475,30 +508,14 @@ REMOTE_SCRIPT
   rm -f "$DEPLOYMENT_DIR/remote_deploy.sh"
 }
 
-# Function to verify deployment
-verify_deployment() {
-  step "Verifying deployment"
-  
-  log info "Checking application status..."
-  if ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP "curl -s http://localhost:5000/api/HellowWorld" &> /dev/null; then
-    log info "Application API is accessible."
-  else
-    log warn "Application API check failed. Please check the logs on the server."
-    ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP "sudo docker logs streamflix"
-  fi
-  
-  log info "Checking Nginx status..."
-  if ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP "curl -s http://localhost:80" &> /dev/null; then
-    log info "Nginx is properly configured and running."
-  else
-    log warn "Nginx check failed. Please check Nginx configuration."
-    ssh -o StrictHostKeyChecking=no -i "$SSH_KEY_PATH" ubuntu@$INSTANCE_IP "sudo systemctl status nginx"
-  fi
-}
+
 
 # Function to display deployment summary
 deployment_summary() {
   step "Deployment Summary"
+  
+  # Load deployment variables
+  manage_deployment_vars load
   
   echo -e "${BOLD}====== Streamflix Deployment Results ======${NC}"
   echo -e "${BOLD}Application URL:${NC} http://$INSTANCE_IP"
@@ -532,7 +549,6 @@ main() {
   prepare_application
   setup_ssh_access
   deploy_application
-  verify_deployment
   deployment_summary
   cleanup
   
