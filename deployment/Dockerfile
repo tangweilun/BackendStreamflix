@@ -11,8 +11,12 @@ RUN dotnet restore
 
 # Copy and publish app and libraries
 COPY . ./
-# Run migrations during build
 RUN dotnet publish -c Release -o out
+
+# Run migrations after publish
+WORKDIR /app
+RUN dotnet ef migrations add InitialMigration --project . --output-dir Migrations
+RUN dotnet ef database update --project .
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
