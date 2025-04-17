@@ -136,11 +136,9 @@ resource "aws_instance" "app_server" {
   ami           = var.ubuntu_ami
   instance_type = var.instance_type
   key_name      = var.key_name
-
   vpc_security_group_ids = [aws_security_group.app_sg.id]
-
-  # Load setup script from file
-  user_data = file("${path.module}/setup_docker.sh")
+  # Load setup script from file - fixed path to point to the correct location
+  user_data = file("${path.module}/../scripts/setup_docker.sh")
 
   # Configure the root volume
   root_block_device {
@@ -297,10 +295,15 @@ resource "aws_db_instance" "postgres" {
   backup_retention_period = 7
   deletion_protection    = false  # Set to true for production
 
+  # Add lifecycle policy here too for consistency if desired
+  lifecycle {
+     create_before_destroy = true # Might help if identifier changes need replacement
+  }
+
   tags = merge(
     local.common_tags,
     {
-      Name = "${local.resource_name}-postgres"
+      Name = "${local.resource_name}-postgres" # Still using timestamp here
     }
   )
 }
