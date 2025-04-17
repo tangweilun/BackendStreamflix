@@ -207,7 +207,12 @@ provision_infrastructure() {
   DB_HOST=$(terraform output -raw db_endpoint 2>/dev/null)
   DB_NAME=$(terraform output -raw db_name 2>/dev/null)
   DB_USER=$(terraform output -raw db_username 2>/dev/null)
-  DB_PASSWORD=$(grep -o 'default\s*=\s*"[^"]*"' ../terraform/main.tf | grep db_password | cut -d'"' -f2)
+  DB_PASSWORD=admin123
+  
+  # Get connection string from terraform output and replace password placeholder
+  CONNECTION_STRING=$(terraform output -raw connection_string 2>/dev/null)
+  # Replace <password> placeholder with actual password
+  CONNECTION_STRING=${CONNECTION_STRING//<password>/$DB_PASSWORD}
   
   # Save deployment variables
   manage_deployment_vars add "INSTANCE_IP" "$INSTANCE_IP"
@@ -215,9 +220,13 @@ provision_infrastructure() {
   manage_deployment_vars add "DB_NAME" "$DB_NAME"
   manage_deployment_vars add "DB_USER" "$DB_USER"
   manage_deployment_vars add "DB_PASSWORD" "$DB_PASSWORD"
+  manage_deployment_vars add "CONNECTION_STRING" "$CONNECTION_STRING"
   
   log info "EC2 instance deployed with IP: $INSTANCE_IP"
   log info "Database endpoint: $DB_HOST"
+    # Create the connection string
+  CONNECTION_STRING="Host=${DB_HOSTNAME};Port=${DB_PORT};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;"
+  
 }
 
 # Function to prepare the application package
@@ -226,13 +235,6 @@ prepare_application() {
   
   # Load deployment variables
   manage_deployment_vars load
-  
-  # # Verify instance IP is available
-  # if [ -z "$INSTANCE_IP" ]; then
-  #   log error "Instance IP not found. Infrastructure provisioning may have failed."
-  #   exit 1
-  # fi
-  
   # Create a temporary build directory
   BUILD_DIR=$(mktemp -d)
   log info "Created temporary build directory: $BUILD_DIR"
@@ -542,21 +544,43 @@ cleanup() {
 
 # Main function to orchestrate the deployment
 main() {
+  # Set up error handling
+  set -eo pipefail
+  
+  # Execute deployment steps
   check_prerequisites
   setup_directories
   setup_aws_credentials
   provision_infrastructure
+  
+  # Return to deployment directory after Terraform operations
+  cd "$DEPLOYMENT_DIR"
+  
+  # Add debugging information
+  log info "Starting application preparation..."
   prepare_application
+  
+  log info "Setting up SSH access..."
   setup_ssh_access
+  
+  log info "Deploying application..."
   deploy_application
+  
+  log info "Generating deployment summary..."
   deployment_summary
-  cleanup
   
   echo -e "\n${BOLD}${GREEN}====== Deployment Completed Successfully ======${NC}"
 }
 
-# Trap for cleanup on script exit
-trap cleanup EXIT
+# Remove the trap from here
+# trap cleanup EXIT
 
-# Execute main function
-main
+# Execute main function with proper error handling
+main || {
+  log error "Deployment failed"
+  cleanup
+  exit 1
+}
+
+# Only run cleanup if deployment was successful
+cleanup

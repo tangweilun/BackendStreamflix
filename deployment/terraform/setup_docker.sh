@@ -18,7 +18,7 @@ groupadd -f docker
 
 # Create Docker Compose file
 mkdir -p /app
-cat > /app/docker-compose.yml << 'EOL'
+cat > /app/docker-compose.yml << 'ENDCOMPOSE'
 version: '3'
 services:
   streamflix:
@@ -40,10 +40,10 @@ services:
       - AWS_SECRET_KEY=${AWS_SECRET_KEY}
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
       - AWS_REGION=${AWS_REGION:-us-east-1}
-EOL
+ENDCOMPOSE
 
 # Configure Nginx as reverse proxy
-cat > /etc/nginx/sites-available/streamflix << 'EOL'
+cat > /etc/nginx/sites-available/streamflix << 'ENDNGINX'
 server {
     listen 80 default_server;
     server_name _;
@@ -61,15 +61,16 @@ server {
         proxy_set_header X-Forwarded-Path $request_uri;
     }
 }
-EOL
+ENDNGINX
+
 # Remove default site if it exists
 rm -f /etc/nginx/sites-enabled/default
 
 # Enable Nginx site configuration
 ln -sf /etc/nginx/sites-available/streamflix /etc/nginx/sites-enabled/
 
-# Create deployment script with database configuration support
-cat > /app/server_deploy.sh << 'EOL'
+# Create server_deploy.sh
+cat > /app/server_deploy.sh << 'ENDSCRIPT'
 #!/bin/bash
 set -e
 
@@ -193,7 +194,7 @@ run_migrations() {
   log info "Running migrations using Docker..."
   
   # Create a temporary Dockerfile for migrations
-  cat > Dockerfile.migrations << 'EOL'
+  cat > Dockerfile.migrations << 'DOCKERMIG'
 FROM mcr.microsoft.com/dotnet/sdk:8.0
 
 WORKDIR /app
@@ -210,7 +211,7 @@ ENV ConnectionStrings__DefaultConnection=""
 
 # Run migrations
 ENTRYPOINT ["sh", "-c", "dotnet ef migrations add InitialCreate --context ApplicationDbContext && dotnet ef database update --context ApplicationDbContext"]
-EOL
+DOCKERMIG
 
   # Build and run the migrations container
   log info "Building migrations Docker image..."
@@ -286,43 +287,11 @@ log info "Reloading Nginx"
 systemctl reload nginx
 
 log info "Deployment completed successfully!"
-EOL
+ENDSCRIPT
 
 chmod +x /app/server_deploy.sh
 
 # Reload Nginx configuration
 systemctl reload nginx
-
-# Create instructions file
-cat > /home/$USER/README.txt << 'EOL'
-# Streamflix Deployment Instructions
-
-To deploy your .NET application:
-
-1. Upload your code to /app directory
-2. Set environment variables (if needed):
-   # Database configuration
-   export DB_HOST="your-db-host:5432"
-   export DB_NAME="your-db-name"
-   export DB_USER="your-db-user"
-   export DB_PASSWORD="your-db-password"
-   
-   # AWS credentials
-   export AWS_ACCESS_KEY="your-aws-access-key"
-   export AWS_SECRET_KEY="your-aws-secret-key"
-   export AWS_SESSION_TOKEN="your-aws-session-token"
-   export AWS_REGION="us-east-1"
-
-3. Run the deployment script:
-   cd /app
-   sudo -E ./server_deploy.sh
-
-Your application will be accessible at:
-- http://<public-ip>
-
-EOL
-
-chown $USER:$USER /home/$USER/README.txt
-
 # Output completion message
 echo "Server setup completed successfully!"
