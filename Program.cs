@@ -101,17 +101,75 @@ builder.Services.AddHttpClient();
 // Register EmailService
 builder.Services.AddScoped<EmailService>();
 // AWS S3 Configuration
-var awsOptions = builder.Configuration.GetSection("AWS");
-var awsAccessKey = awsOptions["AccessKey"];
-var awsSecretKey = awsOptions["SecretKey"];
-var awsSessionToken = awsOptions["SessionToken"];
-var awsRegion = awsOptions["Region"];
+// AWS S3 Configuration
+try
+{
+    var awsOptions = builder.Configuration.GetSection("AWS");
+    var awsAccessKey = awsOptions["AccessKey"];
+    var awsSecretKey = awsOptions["SecretKey"];
+    var awsSessionToken = awsOptions["SessionToken"];
+    var awsRegion = awsOptions["Region"] ?? "us-east-1";
 
-var credentials = new SessionAWSCredentials(awsAccessKey, awsSecretKey, awsSessionToken);
-var s3Client = new AmazonS3Client(credentials, RegionEndpoint.GetBySystemName(awsRegion));
+    Console.WriteLine($"Configuring AWS S3 with region: {awsRegion}");
 
-// Add AWS services to DI container
-builder.Services.AddSingleton<IAmazonS3>(s3Client);
+    AmazonS3Client s3Client;
+
+    if (!string.IsNullOrEmpty(awsAccessKey) && !string.IsNullOrEmpty(awsSecretKey))
+    {
+        Console.WriteLine("Using provided AWS credentials");
+        
+        if (string.IsNullOrEmpty(awsSessionToken))
+        {
+            // Use basic credentials without session token
+            var basicCredentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
+            s3Client = new AmazonS3Client(basicCredentials, RegionEndpoint.GetBySystemName(awsRegion));
+        }
+        else
+        {
+            // Use session credentials with token
+            var sessionCredentials = new SessionAWSCredentials(awsAccessKey, awsSecretKey, awsSessionToken);
+            s3Client = new AmazonS3Client(sessionCredentials, RegionEndpoint.GetBySystemName(awsRegion));
+        }
+    }
+    else
+    {
+        Console.WriteLine("No AWS credentials provided, falling back to instance profile or default credentials");
+        // Use default credentials provider chain - will use instance profile if running on EC2
+        s3Client = new AmazonS3Client(RegionEndpoint.GetBySystemName(awsRegion));
+    }
+
+    // Optionally test the connection (comment out if not needed)
+    try
+    {
+        var response = s3Client.ListBucketsAsync().GetAwaiter().GetResult();
+        Console.WriteLine($"Successfully connected to S3. Found {response.Buckets.Count} buckets.");
+    }
+    catch (Exception testEx)
+    {
+        Console.WriteLine($"Warning: Could not connect to S3: {testEx.Message}");
+        // Continue anyway, as we've created the client
+    }
+
+    // Add AWS services to DI container
+    builder.Services.AddSingleton<IAmazonS3>(s3Client);
+    Console.WriteLine("AWS S3 client registered successfully");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error initializing AWS S3 client: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    
+    // Optional: Register a mock/dummy S3 client or handle the error differently
+    // builder.Services.AddSingleton<IAmazonS3>(new MockAmazonS3Client());
+    
+    // Depending on your requirements, you might want to:
+    // 1. Continue without S3 functionality
+    // 2. Use a mock implementation
+    // 3. Throw the exception and prevent application startup
+    
+    // Option 3: Rethrow if S3 is critical for your application
+    // throw;
+}
 
 // Increase file upload size limit (1GB)
 const long MaxFileSize = 1L * 1024 * 1024 * 1024; // 1GB

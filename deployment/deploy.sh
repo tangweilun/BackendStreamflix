@@ -65,11 +65,9 @@ chmod 600 "${KEY_PATH}"
 # Initialize and apply Terraform
 cd "${TF_DIR}"
 echo "Attempting to clean up previous Terraform state..."
-# Try removing the old backup directory first (ignore errors if it doesn't exist)
-sudo rm -rf .terraform_old || true
-# Try moving the current .terraform directory (might succeed where rm fails)
-echo "Moving existing .terraform directory to .terraform_old..."
-sudo mv .terraform .terraform_old || true # Ignore error if .terraform doesn't exist or move fails
+# Remove Terraform directories and state files
+sudo rm -rf .terraform
+rm -f terraform.tfstate terraform.tfstate.backup
 
 # Remove the terraform.lock.hcl file to ensure a fresh provider initialization
 echo "Removing terraform.lock.hcl file..."
@@ -146,12 +144,11 @@ echo "Cloning application repository to EC2 instance..."
 # First install git if not present
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "sudo apt-get update && sudo apt-get install -y git"
 
-# Clone the repository (replace with your actual repo URL)
-# Clone the repository with specific branch (replace 'branch-name' with your desired branch)
+# Clone the repository (replace with actual repo URL)
 ssh -i "${KEY_PATH}" \
     -o StrictHostKeyChecking=no \
     ubuntu@${EC2_PUBLIC_IP} \
-    "git clone -b weilun --single-branch https://github.com/tangweilun/BackendStreamflix.git /home/ubuntu/application"
+    "git clone https://github.com/tangweilun/BackendStreamflix.git /home/ubuntu/app"
 
 # Copy the .env file separately since it's generated dynamically
 scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
@@ -164,15 +161,10 @@ scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
     "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/nginx/"
 
 echo "Starting Docker Compose on EC2 instance..."
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << EOF
-  # Ensure the app directory exists on the remote machine
-  mkdir -p /home/ubuntu/app
-  cd /home/ubuntu/app
-  # Ensure docker compose command is available (may already be handled by setup_docker.sh)
-  # Pull latest images if needed (optional)
-  # sudo docker compose pull
-  # Start services
-  sudo docker compose up -d --remove-orphans # Use 'docker compose', add --remove-orphans for cleanup
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
+# Start Docker Compose
+cd /home/ubuntu/app/deployment/dockers
+sudo docker compose up -d --remove-orphans
 EOF
 
 echo "Deployment complete!"
