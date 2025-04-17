@@ -156,10 +156,14 @@ ssh -i "${KEY_PATH}" \
     ubuntu@${EC2_PUBLIC_IP} \
     "git clone https://github.com/tangweilun/BackendStreamflix.git /home/ubuntu/app"
 
+    
+# Create nginx directory in app directory
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "mkdir -p /home/ubuntu/app/nginx"
+
 # Copy the .env file separately since it's generated dynamically
 scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
     "${DOCKER_DIR}/.env" \
-    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/"
+    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/deployment/dockers"
 
 # Copy nginx config separately
 scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \

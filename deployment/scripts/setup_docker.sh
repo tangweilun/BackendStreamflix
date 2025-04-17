@@ -19,18 +19,5 @@ sudo usermod -a -G docker ubuntu
 sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
 
-# Create env file with DB connection details
-mkdir -p /home/ubuntu/app
-# Create app directories
-mkdir -p /home/ubuntu/app/nginx
-
-cat > /home/ubuntu/app/.env << EOF
-DB_HOST=${db_host}
-DB_PORT=${db_port}
-DB_NAME=${db_name}
-DB_USERNAME=${db_username}
-DB_PASSWORD=${db_password}
-EOF
-
 # Set the proper ownership
 sudo chown -R ubuntu:ubuntu /home/ubuntu/app
