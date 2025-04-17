@@ -65,13 +65,19 @@ chmod 600 "${KEY_PATH}"
 # Initialize and apply Terraform
 cd "${TF_DIR}"
 echo "Attempting to clean up previous Terraform state..."
-# Remove Terraform directories and state files
-sudo rm -rf .terraform
-rm -f terraform.tfstate terraform.tfstate.backup
+
+# Try to change ownership of .terraform; ignore errors
+sudo chown -R $USER:$USER .terraform 2>/dev/null || true
+
+# Try to remove .terraform; ignore permission denied errors
+rm -rf .terraform 2>/dev/null || echo "Warning: Could not delete .terraform directory."
+
+# Remove Terraform state files safely
+rm -f terraform.tfstate terraform.tfstate.backup 2>/dev/null || echo "Warning: Could not delete state files."
 
 # Remove the terraform.lock.hcl file to ensure a fresh provider initialization
 echo "Removing terraform.lock.hcl file..."
-rm -f "${TF_DIR}/.terraform.lock.hcl" || true
+rm -f "${TF_DIR}/.terraform.lock.hcl" 2>/dev/null || echo "Warning: Could not delete terraform.lock.hcl."
 
 echo "Proceeding with terraform init..."
 terraform init
