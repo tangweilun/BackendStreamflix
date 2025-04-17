@@ -52,7 +52,6 @@ namespace Streamflix.Migrations
                     Price = table.Column<decimal>(type: "numeric", nullable: false),
                     FeaturesJson = table.Column<string>(type: "jsonb", nullable: false),
                     Quality = table.Column<string>(type: "text", nullable: false),
-                    MaxStreams = table.Column<int>(type: "integer", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
@@ -71,6 +70,7 @@ namespace Streamflix.Migrations
                     PasswordHash = table.Column<string>(type: "text", nullable: false),
                     DateOfBirth = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     PhoneNumber = table.Column<string>(type: "text", nullable: false),
+                    RegisteredOn = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsAdmin = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
@@ -95,6 +95,7 @@ namespace Streamflix.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Videos", x => x.Id);
+                    table.UniqueConstraint("AK_Videos_Title", x => x.Title);
                 });
 
             migrationBuilder.CreateTable(
@@ -155,7 +156,7 @@ namespace Streamflix.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UserId = table.Column<int>(type: "integer", nullable: false),
-                    VideoId = table.Column<int>(type: "integer", nullable: false),
+                    VideoTitle = table.Column<string>(type: "text", nullable: false),
                     DateAdded = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -166,13 +167,13 @@ namespace Streamflix.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_FavoriteVideos_Videos_VideoId",
-                        column: x => x.VideoId,
+                        name: "FK_FavoriteVideos_Videos_VideoTitle",
+                        column: x => x.VideoTitle,
                         principalTable: "Videos",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        principalColumn: "Title",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -230,7 +231,7 @@ namespace Streamflix.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UserId = table.Column<int>(type: "integer", nullable: false),
-                    VideoId = table.Column<int>(type: "integer", nullable: false),
+                    VideoTitle = table.Column<string>(type: "text", nullable: false),
                     CurrentPosition = table.Column<int>(type: "integer", nullable: false),
                     LastUpdated = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -244,37 +245,10 @@ namespace Streamflix.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_WatchHistory_Videos_VideoId",
-                        column: x => x.VideoId,
+                        name: "FK_WatchHistory_Videos_VideoTitle",
+                        column: x => x.VideoTitle,
                         principalTable: "Videos",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "WatchLists",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
-                    ContentId = table.Column<int>(type: "integer", nullable: false),
-                    AddedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_WatchLists", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_WatchLists_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_WatchLists_Videos_ContentId",
-                        column: x => x.ContentId,
-                        principalTable: "Videos",
-                        principalColumn: "Id",
+                        principalColumn: "Title",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -295,21 +269,21 @@ namespace Streamflix.Migrations
 
             migrationBuilder.InsertData(
                 table: "SubscriptionPlans",
-                columns: new[] { "Id", "FeaturesJson", "IsActive", "MaxStreams", "PlanName", "Price", "Quality" },
+                columns: new[] { "Id", "FeaturesJson", "IsActive", "PlanName", "Price", "Quality" },
                 values: new object[,]
                 {
-                    { 1, "[\"Watch on 1 screen\",\"Unlimited access to movies and TV series\",\"SD quality\",\"Ad-free experience\",\"Cancel anytime\"]", true, 1, "Basic", 19.90m, "SD" },
-                    { 2, "[\"Watch on 2 screens\",\"Unlimited access to movies and TV series\",\"HD quality\",\"Ad-free experience\",\"Cancel anytime\"]", true, 2, "Standard", 29.90m, "HD" },
-                    { 3, "[\"Watch on 4 screens\",\"Unlimited access to movies and TV series\",\"4K quality\",\"Ad-free experience\",\"Cancel anytime\"]", true, 4, "Premium", 39.90m, "4K" }
+                    { 1, "[\"Watch on 1 screen\",\"Unlimited access to movies and TV series\",\"SD quality\",\"Ad-free experience\",\"Cancel anytime\"]", true, "Basic", 19.90m, "SD" },
+                    { 2, "[\"Watch on 2 screens\",\"Unlimited access to movies and TV series\",\"HD quality\",\"Ad-free experience\",\"Cancel anytime\"]", true, "Standard", 29.90m, "HD" },
+                    { 3, "[\"Watch on 4 screens\",\"Unlimited access to movies and TV series\",\"4K quality\",\"Ad-free experience\",\"Cancel anytime\"]", true, "Premium", 39.90m, "4K" }
                 });
 
             migrationBuilder.InsertData(
                 table: "Users",
-                columns: new[] { "Id", "DateOfBirth", "Email", "IsAdmin", "PasswordHash", "PhoneNumber", "UserName" },
+                columns: new[] { "Id", "DateOfBirth", "Email", "IsAdmin", "PasswordHash", "PhoneNumber", "RegisteredOn", "UserName" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "admin@gmail.com", true, "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe", "011234567890", "admin" },
-                    { 2, new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "client@gmail.com", false, "$2a$11$YhlzICWWwHYr45hL3hvdpeoe10DHG0ebxjk7VdtqQ0nOjLB1c9xYu", "011234567890", "client" }
+                    { 1, new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "admin@gmail.com", true, "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe", "011234567890", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "admin" },
+                    { 2, new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "client@gmail.com", false, "$2a$11$YhlzICWWwHYr45hL3hvdpeoe10DHG0ebxjk7VdtqQ0nOjLB1c9xYu", "011234567890", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Client" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -318,9 +292,9 @@ namespace Streamflix.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_FavoriteVideos_VideoId",
+                name: "IX_FavoriteVideos_VideoTitle",
                 table: "FavoriteVideos",
-                column: "VideoId");
+                column: "VideoTitle");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PasswordResetTokens_UserId",
@@ -348,24 +322,20 @@ namespace Streamflix.Migrations
                 column: "GenreId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Videos_Title",
+                table: "Videos",
+                column: "Title",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WatchHistory_UserId",
                 table: "WatchHistory",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_WatchHistory_VideoId",
+                name: "IX_WatchHistory_VideoTitle",
                 table: "WatchHistory",
-                column: "VideoId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_WatchLists_ContentId",
-                table: "WatchLists",
-                column: "ContentId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_WatchLists_UserId",
-                table: "WatchLists",
-                column: "UserId");
+                column: "VideoTitle");
         }
 
         /// <inheritdoc />
@@ -388,9 +358,6 @@ namespace Streamflix.Migrations
 
             migrationBuilder.DropTable(
                 name: "WatchHistory");
-
-            migrationBuilder.DropTable(
-                name: "WatchLists");
 
             migrationBuilder.DropTable(
                 name: "SubscriptionPlans");

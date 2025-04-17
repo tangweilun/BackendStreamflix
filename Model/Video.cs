@@ -28,7 +28,6 @@ namespace Streamflix.Model
         [Required]
         public string ContentUrl { get; set; }
 
-        public ICollection<WatchList> WatchLists { get; set; }
         public ICollection<VideoGenre> VideoGenres { get; set; }
         public ICollection<VideoCast> VideoCasts { get; set; }
     }

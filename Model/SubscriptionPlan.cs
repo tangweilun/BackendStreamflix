@@ -20,9 +20,6 @@ namespace Streamflix.Model
         [Required]
         public string Quality { get; set; }
 
-        [Required]
-        public int MaxStreams { get; set; }
-
         public bool IsActive { get; set; } = true;
 
         public ICollection<UserSubscription> UserSubscriptions { get; set; }

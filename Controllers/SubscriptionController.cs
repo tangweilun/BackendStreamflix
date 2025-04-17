@@ -93,8 +93,8 @@ namespace Streamflix.Controllers
                     }
                 },
                 Mode = "subscription",
-                SuccessUrl = "http://localhost:3000/subscription",
-                CancelUrl = "http://localhost:3000",
+                SuccessUrl = "http://localhost:3000/user/subscription",
+                CancelUrl = "http://localhost:3000/user/subscription",
                 // Pass metadata to later identify selected plan in webhook to create UserSubscription
                 Metadata = new Dictionary<string, string>
                 {
@@ -270,7 +270,6 @@ namespace Streamflix.Controllers
         }
 
         [HttpPost("cancel-subscription")]
-        [Authorize]
         public async Task<IActionResult> CancelSubscription([FromBody] UserSubscriptionDto subscriptionDto)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

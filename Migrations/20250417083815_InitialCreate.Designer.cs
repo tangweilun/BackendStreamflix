@@ -12,8 +12,8 @@ using Streamflix.Data;
 namespace Streamflix.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250415074748_ChangeFavoriteVideoToUseTitle")]
-    partial class ChangeFavoriteVideoToUseTitle
+    [Migration("20250417083815_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -175,9 +175,6 @@ namespace Streamflix.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("MaxStreams")
-                        .HasColumnType("integer");
-
                     b.Property<string>("PlanName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -199,7 +196,6 @@ namespace Streamflix.Migrations
                             Id = 1,
                             FeaturesJson = "[\"Watch on 1 screen\",\"Unlimited access to movies and TV series\",\"SD quality\",\"Ad-free experience\",\"Cancel anytime\"]",
                             IsActive = true,
-                            MaxStreams = 1,
                             PlanName = "Basic",
                             Price = 19.90m,
                             Quality = "SD"
@@ -209,7 +205,6 @@ namespace Streamflix.Migrations
                             Id = 2,
                             FeaturesJson = "[\"Watch on 2 screens\",\"Unlimited access to movies and TV series\",\"HD quality\",\"Ad-free experience\",\"Cancel anytime\"]",
                             IsActive = true,
-                            MaxStreams = 2,
                             PlanName = "Standard",
                             Price = 29.90m,
                             Quality = "HD"
@@ -219,7 +214,6 @@ namespace Streamflix.Migrations
                             Id = 3,
                             FeaturesJson = "[\"Watch on 4 screens\",\"Unlimited access to movies and TV series\",\"4K quality\",\"Ad-free experience\",\"Cancel anytime\"]",
                             IsActive = true,
-                            MaxStreams = 4,
                             PlanName = "Premium",
                             Price = 39.90m,
                             Quality = "4K"
@@ -252,6 +246,9 @@ namespace Streamflix.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime>("RegisteredOn")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -269,6 +266,7 @@ namespace Streamflix.Migrations
                             IsAdmin = true,
                             PasswordHash = "$2a$11$ygK874fSkPlpFOP0ZgsWQuEDSPZ92jPjyWKNou/GzbYxgjyXSqzCe",
                             PhoneNumber = "011234567890",
+                            RegisteredOn = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             UserName = "admin"
                         },
                         new
@@ -279,7 +277,8 @@ namespace Streamflix.Migrations
                             IsAdmin = false,
                             PasswordHash = "$2a$11$YhlzICWWwHYr45hL3hvdpeoe10DHG0ebxjk7VdtqQ0nOjLB1c9xYu",
                             PhoneNumber = "011234567890",
-                            UserName = "client"
+                            RegisteredOn = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UserName = "Client"
                         });
                 });
 
@@ -409,42 +408,17 @@ namespace Streamflix.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("VideoId")
-                        .HasColumnType("integer");
+                    b.Property<string>("VideoTitle")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
 
-                    b.HasIndex("VideoId");
+                    b.HasIndex("VideoTitle");
 
                     b.ToTable("WatchHistory");
-                });
-
-            modelBuilder.Entity("Streamflix.Model.WatchList", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AddedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("ContentId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ContentId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("WatchLists");
                 });
 
             modelBuilder.Entity("Streamflix.Model.FavoriteVideo", b =>
@@ -544,33 +518,15 @@ namespace Streamflix.Migrations
                         .IsRequired();
 
                     b.HasOne("Streamflix.Model.Video", "Video")
-                        .WithMany("WatchHistory")
-                        .HasForeignKey("VideoId")
+                        .WithMany()
+                        .HasForeignKey("VideoTitle")
+                        .HasPrincipalKey("Title")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
 
                     b.Navigation("Video");
-                });
-
-            modelBuilder.Entity("Streamflix.Model.WatchList", b =>
-                {
-                    b.HasOne("Streamflix.Model.Video", "Content")
-                        .WithMany("WatchLists")
-                        .HasForeignKey("ContentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Streamflix.Model.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Content");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Streamflix.Model.Genre", b =>
@@ -588,10 +544,6 @@ namespace Streamflix.Migrations
                     b.Navigation("VideoCasts");
 
                     b.Navigation("VideoGenres");
-
-                    b.Navigation("WatchHistory");
-
-                    b.Navigation("WatchLists");
                 });
 #pragma warning restore 612, 618
         }
