@@ -18,7 +18,6 @@ namespace Streamflix.Data
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
         public DbSet<UserSubscription> UserSubscription { get; set; }
         public DbSet<Video> Videos { get; set; }
-        public DbSet<WatchList> WatchLists { get; set; }
         public DbSet<WatchHistory> WatchHistory { get; set; }
         public DbSet<Genre> Genres { get; set; }
         public DbSet<VideoGenre> VideoGenres { get; set; }
@@ -85,7 +84,6 @@ namespace Streamflix.Data
                     Price = 19.90m,
                     FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 1 screen", "Unlimited access to movies and TV series", "SD quality", "Ad-free experience", "Cancel anytime" }),
                     Quality = "SD",
-                    MaxStreams = 1,
                     IsActive = true
                 },
                 new SubscriptionPlan
@@ -95,7 +93,6 @@ namespace Streamflix.Data
                     Price = 29.90m,
                     FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 2 screens", "Unlimited access to movies and TV series", "HD quality", "Ad-free experience", "Cancel anytime" }),
                     Quality = "HD",
-                    MaxStreams = 2,
                     IsActive = true
                 },
                 new SubscriptionPlan
@@ -105,7 +102,6 @@ namespace Streamflix.Data
                     Price = 39.90m,
                     FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 4 screens", "Unlimited access to movies and TV series", "4K quality", "Ad-free experience", "Cancel anytime" }),
                     Quality = "4K",
-                    MaxStreams = 4,
                     IsActive = true
                 }
             );

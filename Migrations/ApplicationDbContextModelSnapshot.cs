@@ -172,9 +172,6 @@ namespace Streamflix.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("MaxStreams")
-                        .HasColumnType("integer");
-
                     b.Property<string>("PlanName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -196,7 +193,6 @@ namespace Streamflix.Migrations
                             Id = 1,
                             FeaturesJson = "[\"Watch on 1 screen\",\"Unlimited access to movies and TV series\",\"SD quality\",\"Ad-free experience\",\"Cancel anytime\"]",
                             IsActive = true,
-                            MaxStreams = 1,
                             PlanName = "Basic",
                             Price = 19.90m,
                             Quality = "SD"
@@ -206,7 +202,6 @@ namespace Streamflix.Migrations
                             Id = 2,
                             FeaturesJson = "[\"Watch on 2 screens\",\"Unlimited access to movies and TV series\",\"HD quality\",\"Ad-free experience\",\"Cancel anytime\"]",
                             IsActive = true,
-                            MaxStreams = 2,
                             PlanName = "Standard",
                             Price = 29.90m,
                             Quality = "HD"
@@ -216,7 +211,6 @@ namespace Streamflix.Migrations
                             Id = 3,
                             FeaturesJson = "[\"Watch on 4 screens\",\"Unlimited access to movies and TV series\",\"4K quality\",\"Ad-free experience\",\"Cancel anytime\"]",
                             IsActive = true,
-                            MaxStreams = 4,
                             PlanName = "Premium",
                             Price = 39.90m,
                             Quality = "4K"
@@ -424,32 +418,6 @@ namespace Streamflix.Migrations
                     b.ToTable("WatchHistory");
                 });
 
-            modelBuilder.Entity("Streamflix.Model.WatchList", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AddedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("ContentId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ContentId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("WatchLists");
-                });
-
             modelBuilder.Entity("Streamflix.Model.FavoriteVideo", b =>
                 {
                     b.HasOne("Streamflix.Model.User", "User")
@@ -558,25 +526,6 @@ namespace Streamflix.Migrations
                     b.Navigation("Video");
                 });
 
-            modelBuilder.Entity("Streamflix.Model.WatchList", b =>
-                {
-                    b.HasOne("Streamflix.Model.Video", "Content")
-                        .WithMany("WatchLists")
-                        .HasForeignKey("ContentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Streamflix.Model.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Content");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Streamflix.Model.Genre", b =>
                 {
                     b.Navigation("VideoGenres");
@@ -592,8 +541,6 @@ namespace Streamflix.Migrations
                     b.Navigation("VideoCasts");
 
                     b.Navigation("VideoGenres");
-
-                    b.Navigation("WatchLists");
                 });
 #pragma warning restore 612, 618
         }
