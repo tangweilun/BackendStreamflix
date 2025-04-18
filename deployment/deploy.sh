@@ -163,7 +163,7 @@ ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "mkdi
 # Copy the .env file separately since it's generated dynamically
 scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
     "${DOCKER_DIR}/.env" \
-    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/deployment/dockers"
+    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/deployment/docker"
 
 # Copy nginx config separately
 scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
@@ -173,7 +173,7 @@ scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
 echo "Starting Docker Compose on EC2 instance..."
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
 # Start Docker Compose
-cd /home/ubuntu/app/deployment/dockers
+cd /home/ubuntu/app/deployment/docker
 sudo docker compose up -d --remove-orphans
 EOF
 
