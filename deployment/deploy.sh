@@ -123,37 +123,30 @@ mkdir -p "${DOCKER_DIR}/nginx"
 # Create nginx config file locally
 cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
     server {
-        listen 80 default_server;
-        server_name streamflix.com;
-
-        access_log /var/log/nginx/access.log main;
+        listen        80 default_server;
+        server_name streamflix.us-east-1.elasticbeanstalk.com;
+        access_log    /var/log/nginx/access.log main;
 
         client_header_timeout 60;
         client_body_timeout   60;
         keepalive_timeout     60;
-
-        gzip off;
-        gzip_comp_level 4;
+        gzip                  off;
+        gzip_comp_level       4;
         gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript;
-
-        # Allow Certbot to complete challenges
-        location /.well-known/acme-challenge/ {
-            root /var/www/certbot;
-            allow all;
+        location /.well-known/acme-challenge/{                root /var/www/certbot;
+                allow all;
         }
 
-        # Redirect everything else to HTTPS
-        location / {
-            return 301 https://\$host\$request_uri;
-        }
+        # Include the Elastic Beanstalk generated locations
+        include conf.d/elasticbeanstalk/*.conf;
     }
      # HTTPS server
     server {
         listen 443 ssl;
-        server_name streamflix.com;
+        server_name streamflix.us-east-1.elasticbeanstalk.com;
 
-        ssl_certificate /etc/letsencrypt/live/streamflix.com/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/streamflix.com/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/streamflix.us-east-1.elasticbeanstalk.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/streamflix.us-east-1.elasticbeanstalk.com/privkey.pem;
 
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
@@ -165,7 +158,7 @@ cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
 
         # Main proxy or app location
         location / {
-        proxy_pass http://api:5000/; # Change this port if your app listens elsewhere
+            proxy_pass http://localhost:5000;  # Change this port if your app listens elsewhere
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
@@ -173,7 +166,6 @@ cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
             proxy_cache_bypass $http_upgrade;
         }
     }
-
 EOF
 
 # --- SCP and SSH sections ---
