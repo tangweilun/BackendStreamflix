@@ -122,7 +122,6 @@ mkdir -p "${DOCKER_DIR}/nginx"
 
 # Create nginx config file locally
 cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
-# Redirect all HTTP to HTTPS
     server {
         listen        80 default_server;
         server_name _;
