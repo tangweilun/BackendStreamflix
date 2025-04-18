@@ -123,27 +123,37 @@ mkdir -p "${DOCKER_DIR}/nginx"
 # Create nginx config file locally
 cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
     server {
-        listen        80 default_server;
-        server_name _;
-        access_log    /var/log/nginx/access.log main;
+        listen 80 default_server;
+        server_name streamflix.com;
+
+        access_log /var/log/nginx/access.log main;
 
         client_header_timeout 60;
         client_body_timeout   60;
         keepalive_timeout     60;
-        gzip                  off;
-        gzip_comp_level       4;
+
+        gzip off;
+        gzip_comp_level 4;
         gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript;
-        location /.well-known/acme-challenge/{                root /var/www/certbot;
-                allow all;
+
+        # Allow Certbot to complete challenges
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+            allow all;
+        }
+
+        # Redirect everything else to HTTPS
+        location / {
+            return 301 https://\$host\$request_uri;
         }
     }
      # HTTPS server
     server {
         listen 443 ssl;
-        server_name _;
+        server_name streamflix.com;
 
-        ssl_certificate /etc/letsencrypt/live/_/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/_/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/streamflix.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/streamflix.com/privkey.pem;
 
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
