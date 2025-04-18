@@ -133,8 +133,9 @@ cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
         gzip                  off;
         gzip_comp_level       4;
         gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript;
-        location /.well-known/acme-challenge/{                root /var/www/certbot;
-                allow all;
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+            allow all;
         }
 
         # Include the Elastic Beanstalk generated locations
@@ -167,14 +168,21 @@ cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
         }
     }
 EOF
+echo "Create the /var/www/certbot directory if it doesn't exist"
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
+  "sudo mkdir -p /var/www/certbot && sudo chmod 755 /var/www/certbot"
 
-# --- SCP and SSH sections ---
-echo "Cloning application repository to EC2 instance..."
+echo "Installing git and Certbot..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
+  "sudo apt-get update && sudo apt-get install -y git certbot python3-certbot-nginx"
 
-# First install git if not present
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "sudo apt-get update && sudo apt-get install -y git"
-# Install Certbot and obtain SSL certificate
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "sudo apt install certbot python3-certbot-nginx && sudo certbot --nginx && sudo apt-get update"
+echo "Obtaining SSL certificate using webroot method..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
+  "sudo certbot certonly --webroot -w /var/www/certbot -d streamflix.us-east-1.elasticbeanstalk.com --non-interactive --agree-tos -m your-email@example.com"
+
+echo "Reloading NGINX..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
+  "sudo systemctl reload nginx"
 
 # Clone the repository (replace with actual repo URL)
 ssh -i "${KEY_PATH}" \
