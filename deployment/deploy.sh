@@ -113,9 +113,25 @@ AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
 AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
 AWS_REGION=${AWS_REGION}
+NEXT_PUBLIC_API_URL=http://${EC2_PUBLIC_IP}/api
 EOF
 echo ".env file created at ${ENV_FILE_PATH}"
 
+# Create Next.js environment file
+NEXT_ENV_FILE="${DOCKER_DIR}/.env"
+cat > "${NEXT_ENV_FILE}" << EOF
+NEXT_PUBLIC_API_URL=http://${EC2_PUBLIC_IP}/api
+JWT_SECRET_KEY=gT1oV8xJdPb0x8Gb3XyXzjUG5KvRl9+BfayGmB/L7F1UJZnZPxxLQlVfdGzR5d1hQek0bsDzQy7VudZnFtzz5w==
+NEXT_PUBLIC_S3_BUCKET_HOSTNAME=streamflixbucket.s3.amazonaws.com
+NEXT_PUBLIC_S3_BUCKET_NAME=streamflixbucket
+
+EOF
+echo "Next.js .env file created at ${NEXT_ENV_FILE}"
+
+# Copy the Next.js env file to the EC2 instance
+scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
+    "${NEXT_ENV_FILE}" \
+    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/frontend/.env"
 # Copy Docker files (including the generated .env) to EC2 instance
 # Create nginx config directory locally first (if needed, though nginx.conf is generated below)
 mkdir -p "${DOCKER_DIR}/nginx"
@@ -126,7 +142,21 @@ server {
     listen 80;
     server_name _;
 
+    # Frontend Next.js app
     location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+
+    # Backend API
+    location /api/ {
         proxy_pass http://api:5000/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -155,7 +185,34 @@ ssh -i "${KEY_PATH}" \
     -o StrictHostKeyChecking=no \
     ubuntu@${EC2_PUBLIC_IP} \
     "git clone https://github.com/tangweilun/BackendStreamflix.git /home/ubuntu/app"
+    
+ssh -i "${KEY_PATH}" \
+    -o StrictHostKeyChecking=no \
+    ubuntu@${EC2_PUBLIC_IP} \
+    "git clone https://github.com/tangweilun/Streamflix.git /home/ubuntu/frontend"
 
+# Setup Next.js frontend
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
+# Navigate to frontend directory
+cd /home/ubuntu/frontend
+
+# Install Node.js and npm if not already installed
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install dependencies and build the Next.js app
+npm install
+npm run build
+
+# Install PM2 to manage the Next.js process
+sudo npm install -g pm2
+
+# Start the Next.js app with PM2
+pm2 start npm --name "nextjs-frontend" -- start
+pm2 save
+pm2 startup
+sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu
+EOF
     
 # Create nginx directory in app directory
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "mkdir -p /home/ubuntu/app/nginx"
@@ -178,5 +235,6 @@ sudo docker compose up -d --remove-orphans
 EOF
 
 echo "Deployment complete!"
-echo "Your API is available at: http://${EC2_PUBLIC_IP}"
+echo "Your frontend is available at: http://${EC2_PUBLIC_IP}"
+echo "Your API is available at: http://${EC2_PUBLIC_IP}/api"
 echo "PostgreSQL RDS is available at: ${RDS_ENDPOINT}"

@@ -41,7 +41,7 @@ services:
       - AWS_SECRET_KEY=${AWS_SECRET_KEY}
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
       - AWS_REGION=${AWS_REGION}
-      - ConnectionStrings__DbConnection=Host=${DB_HOST};Database=${DB_NAME};Username=${DB_USERNAME};Password=${DB_PASSWORD}
+      - ConnectionStrings__DbConnection=Host=${DB_HOST};Database=${DB_NAME};Username=${DB_USERNAME};Password=${DB_PASSWORD};TrustServerCertificate=true
     command: >
       sh -c "dotnet tool restore &&
              dotnet ef database update"

@@ -410,4 +410,6 @@ deployment/terraform/terraform.tfstate.backup
 deployment/terraform/.terraform/providers/registry.terraform.io/hashicorp/aws/5.8.0/linux_amd64/terraform-provider-aws_v5.8.0_x5
 deployment/terraform/.terraform_old/providers/registry.terraform.io/hashicorp/aws/5.8.0/linux_amd64/terraform-provider-aws_v5.8.0_x5
 deployment/docker/.env
+deployment/vockey.pem
 *.env
+deployment/terraform/.terraform/providers/registry.terraform.io/hashicorp/aws/5.95.0/linux_amd64/LICENSE.txt
