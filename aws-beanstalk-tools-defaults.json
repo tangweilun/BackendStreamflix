@@ -1,0 +1,20 @@
+
+{
+    "region" : "us-east-1",
+    "configuration" : "Debug",
+    "framework"     : "net8.0",
+    "self-contained" : true,
+    "application"    : "Streamflix",
+    "environment"    : "Streamflix-dev",
+    "enable-xray"    : false,
+    "enhanced-health-type" : "basic",
+    "additional-options"   : "\"aws:autoscaling:launchconfiguration,SecurityGroups\"=\"sg-04472d6254436d006\";\"aws:ec2:vpc,Subnets\"=\"subnet-0a018eb0bd4de50a4\"",
+    "solution-stack"       : "64bit Amazon Linux 2 v2.9.0 running .NET Core",
+    "environment-type"     : "SingleInstance",
+    "cname"                : "streamflix",
+    "instance-type"        : "t2.micro",
+    "key-pair"             : "vockey",
+    "instance-profile"     : "LabInstanceProfile",
+    "service-role"         : "LabRole",
+    "proxy-server"         : "nginx"
+}

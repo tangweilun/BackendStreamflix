@@ -139,8 +139,9 @@ mkdir -p "${DOCKER_DIR}/nginx"
 # Create nginx config file locally
 cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
 server {
-    listen 80;
+    listen 80 default_server;
     server_name _;
+    access_log /var/log/nginx/access.log main;
 
     # Frontend Next.js app
     location / {
@@ -167,18 +168,28 @@ server {
         proxy_cache_bypass \$http_upgrade;
     }
 
+    # Health check endpoint
     location /health {
         access_log off;
         return 200 'healthy';
     }
 }
 EOF
+echo "Create the /var/www/certbot directory if it doesn't exist"
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
+  "sudo mkdir -p /var/www/certbot && sudo chmod 755 /var/www/certbot"
 
-# --- SCP and SSH sections ---
-echo "Cloning application repository to EC2 instance..."
+echo "Installing git and Certbot..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
+  "sudo apt-get update && sudo apt-get install -y git certbot python3-certbot-nginx"
 
-# First install git if not present
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "sudo apt-get update && sudo apt-get install -y git"
+echo "Obtaining SSL certificate using webroot method..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
+  "sudo certbot certonly --webroot -w /var/www/certbot -d streamflix.us-east-1.elasticbeanstalk.com --non-interactive --agree-tos -m your-email@example.com"
+
+echo "Reloading NGINX..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
+  "sudo systemctl reload nginx"
 
 # Clone the repository (replace with actual repo URL)
 ssh -i "${KEY_PATH}" \
