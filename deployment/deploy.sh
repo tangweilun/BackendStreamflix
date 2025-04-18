@@ -122,26 +122,49 @@ mkdir -p "${DOCKER_DIR}/nginx"
 
 # Create nginx config file locally
 cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
-server {
-    listen 80;
-    server_name _;
+# Redirect all HTTP to HTTPS
+    server {
+        listen        80 default_server;
+        server_name _;
+        access_log    /var/log/nginx/access.log main;
 
-    location / {
-        proxy_pass http://api:5000/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection keep-alive;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
+        client_header_timeout 60;
+        client_body_timeout   60;
+        keepalive_timeout     60;
+        gzip                  off;
+        gzip_comp_level       4;
+        gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+        location /.well-known/acme-challenge/{                root /var/www/certbot;
+                allow all;
+        }
+    }
+     # HTTPS server
+    server {
+        listen 443 ssl;
+        server_name _;
+
+        ssl_certificate /etc/letsencrypt/live/_/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/_/privkey.pem;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+
+	# Security headers (optional but recommended)
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+        add_header X-Frame-Options DENY;
+        add_header X-Content-Type-Options nosniff;
+
+        # Main proxy or app location
+        location / {
+        proxy_pass http://api:5000/; # Change this port if your app listens elsewhere
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+        }
     }
 
-    location /health {
-        access_log off;
-        return 200 'healthy';
-    }
-}
 EOF
 
 # --- SCP and SSH sections ---
@@ -149,6 +172,8 @@ echo "Cloning application repository to EC2 instance..."
 
 # First install git if not present
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "sudo apt-get update && sudo apt-get install -y git"
+# Install Certbot and obtain SSL certificate
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "sudo apt install certbot python3-certbot-nginx && sudo certbot --nginx && sudo apt-get update"
 
 # Clone the repository (replace with actual repo URL)
 ssh -i "${KEY_PATH}" \
