@@ -82,7 +82,7 @@ namespace Streamflix.Data
                     Id = 1,
                     PlanName = "Basic",
                     Price = 19.90m,
-                    FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 1 screen", "Unlimited access to movies and TV series", "SD quality", "Ad-free experience", "Cancel anytime" }),
+                    FeaturesJson = JsonSerializer.Serialize(new[] { "Unlimited access to movies and TV series", "SD quality", "Ad-free experience", "Cancel anytime" }),
                     Quality = "SD",
                     IsActive = true
                 },
@@ -91,7 +91,7 @@ namespace Streamflix.Data
                     Id = 2,
                     PlanName = "Standard",
                     Price = 29.90m,
-                    FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 2 screens", "Unlimited access to movies and TV series", "HD quality", "Ad-free experience", "Cancel anytime" }),
+                    FeaturesJson = JsonSerializer.Serialize(new[] { "Unlimited access to movies and TV series", "HD quality", "Ad-free experience", "Cancel anytime" }),
                     Quality = "HD",
                     IsActive = true
                 },
@@ -100,7 +100,7 @@ namespace Streamflix.Data
                     Id = 3,
                     PlanName = "Premium",
                     Price = 39.90m,
-                    FeaturesJson = JsonSerializer.Serialize(new[] { "Watch on 4 screens", "Unlimited access to movies and TV series", "4K quality", "Ad-free experience", "Cancel anytime" }),
+                    FeaturesJson = JsonSerializer.Serialize(new[] {  "Unlimited access to movies and TV series", "4K quality", "Ad-free experience", "Cancel anytime" }),
                     Quality = "4K",
                     IsActive = true
                 }
