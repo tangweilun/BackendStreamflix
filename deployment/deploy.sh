@@ -124,16 +124,10 @@ NEXT_PUBLIC_API_URL=http://${EC2_PUBLIC_IP}/api
 JWT_SECRET_KEY=gT1oV8xJdPb0x8Gb3XyXzjUG5KvRl9+BfayGmB/L7F1UJZnZPxxLQlVfdGzR5d1hQek0bsDzQy7VudZnFtzz5w==
 NEXT_PUBLIC_S3_BUCKET_HOSTNAME=streamflixbucket.s3.amazonaws.com
 NEXT_PUBLIC_S3_BUCKET_NAME=streamflixbucket
-
 EOF
 echo "Next.js .env file created at ${NEXT_ENV_FILE}"
 
-# Copy the Next.js env file to the EC2 instance
-scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
-    "${NEXT_ENV_FILE}" \
-    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/frontend/.env"
-# Copy Docker files (including the generated .env) to EC2 instance
-# Create nginx config directory locally first (if needed, though nginx.conf is generated below)
+# Create nginx config directory locally first
 mkdir -p "${DOCKER_DIR}/nginx"
 
 # Create nginx config file locally
@@ -175,23 +169,12 @@ server {
     }
 }
 EOF
-echo "Create the /var/www/certbot directory if it doesn't exist"
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
-  "sudo mkdir -p /var/www/certbot && sudo chmod 755 /var/www/certbot"
 
-echo "Installing git and Certbot..."
+# First clone the repositories to create the directories
+echo "Cloning repositories to EC2 instance..."
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
-  "sudo apt-get update && sudo apt-get install -y git certbot python3-certbot-nginx"
+  "sudo apt-get update && sudo apt-get install -y git"
 
-echo "Obtaining SSL certificate using webroot method..."
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
-  "sudo certbot certonly --webroot -w /var/www/certbot -d streamflix.us-east-1.elasticbeanstalk.com --non-interactive --agree-tos -m your-email@example.com"
-
-echo "Reloading NGINX..."
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
-  "sudo systemctl reload nginx"
-
-# Clone the repository (replace with actual repo URL)
 ssh -i "${KEY_PATH}" \
     -o StrictHostKeyChecking=no \
     ubuntu@${EC2_PUBLIC_IP} \
@@ -202,7 +185,27 @@ ssh -i "${KEY_PATH}" \
     ubuntu@${EC2_PUBLIC_IP} \
     "git clone https://github.com/tangweilun/Streamflix.git /home/ubuntu/frontend"
 
+# Now that the directories exist, copy the environment files
+echo "Copying environment files to EC2 instance..."
+scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
+    "${NEXT_ENV_FILE}" \
+    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/frontend/.env"
+
+# Create nginx directory in app directory
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "mkdir -p /home/ubuntu/app/nginx"
+
+# Copy the .env file for the backend
+scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
+    "${DOCKER_DIR}/.env" \
+    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/deployment/docker"
+
+# Copy nginx config
+scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
+    "${DOCKER_DIR}/nginx/nginx.conf" \
+    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/nginx/"
+
 # Setup Next.js frontend
+echo "Setting up Next.js frontend..."
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
 # Navigate to frontend directory
 cd /home/ubuntu/frontend
@@ -225,19 +228,6 @@ pm2 startup
 sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu
 EOF
     
-# Create nginx directory in app directory
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "mkdir -p /home/ubuntu/app/nginx"
-
-# Copy the .env file separately since it's generated dynamically
-scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
-    "${DOCKER_DIR}/.env" \
-    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/deployment/docker"
-
-# Copy nginx config separately
-scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
-    "${DOCKER_DIR}/nginx/nginx.conf" \
-    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/nginx/"
-
 echo "Starting Docker Compose on EC2 instance..."
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
 # Start Docker Compose

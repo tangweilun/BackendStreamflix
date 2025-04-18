@@ -29,6 +29,26 @@ services:
       timeout: 10s
       retries: 5
 
+  # Add frontend service
+  frontend:
+    build:
+      context: ../../../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:5000
+      - NEXT_PUBLIC_S3_BUCKET_HOSTNAME=${NEXT_PUBLIC_S3_BUCKET_HOSTNAME}
+      - NEXT_PUBLIC_S3_BUCKET_NAME=${NEXT_PUBLIC_S3_BUCKET_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    depends_on:
+      - api
+    restart: always
+    networks:
+      - streamflix-network
+    env_file:
+      - .env
+
   migrations:
     build:
       context: ../../
@@ -58,6 +78,7 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - api
+      - frontend
     restart: always
     networks:
       - streamflix-network
