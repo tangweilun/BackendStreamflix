@@ -124,7 +124,7 @@ mkdir -p "${DOCKER_DIR}/nginx"
 cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
     server {
         listen        80 default_server;
-        server_name streamflix.us-east-1.elasticbeanstalk.com;
+        server_name streamsflix.online;
         access_log    /var/log/nginx/access.log main;
 
         client_header_timeout 60;
@@ -144,10 +144,10 @@ cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
      # HTTPS server
     server {
         listen 443 ssl;
-        server_name streamflix.us-east-1.elasticbeanstalk.com;
+        server_name streamsflix.online; # Updated domain name
 
-        ssl_certificate /etc/letsencrypt/live/streamflix.us-east-1.elasticbeanstalk.com/fullchain.pem;
-        ssl_certificate_key /etc/letsencrypt/live/streamflix.us-east-1.elasticbeanstalk.com/privkey.pem;
+        ssl_certificate /etc/letsencrypt/live/streamsflix.online/fullchain.pem; # Updated domain name
+        ssl_certificate_key /etc/letsencrypt/live/streamsflix.online/privkey.pem; # Updated domain name
 
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
@@ -166,6 +166,11 @@ cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
             proxy_set_header Host $host;
             proxy_cache_bypass $http_upgrade;
         }
+        
+        # Add HTTP to HTTPS redirect
+        location / {
+            return 301 https://\$host\$request_uri;
+        }
     }
 EOF
 echo "Create the /var/www/certbot directory if it doesn't exist"
@@ -178,7 +183,7 @@ ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
 
 echo "Obtaining SSL certificate using webroot method..."
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
-  "sudo certbot certonly --webroot -w /var/www/certbot -d streamflix.us-east-1.elasticbeanstalk.com --non-interactive --agree-tos -m your-email@example.com"
+  "sudo certbot certonly --webroot -w /var/www/certbot -d streamsflix.online --non-interactive --agree-tos -m alantang0410@gmail.com" # Update with your real email
 
 echo "Reloading NGINX..."
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
