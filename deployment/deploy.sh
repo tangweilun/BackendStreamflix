@@ -29,9 +29,7 @@ echo
 AWS_REGION="us-east-1"
 
 # Database password prompt
-
 read -p "Enter a password for the PostgreSQL database(admin123): " DB_PASSWORD
-
 
 # Export AWS credentials
 export AWS_ACCESS_KEY_ID
@@ -56,11 +54,8 @@ if [ ! -f "${KEY_PATH}" ]; then
     mv "${SOURCE_KEY_PATH}" "${KEY_PATH}"
 fi
 
-   
 # Set the correct permissions for the SSH key (only accessible by the user)
 chmod 600 "${KEY_PATH}"
-
-
 
 # Initialize and apply Terraform
 cd "${TF_DIR}"
@@ -68,16 +63,6 @@ echo "Attempting to clean up previous Terraform state..."
 
 # Try to change ownership of .terraform; ignore errors
 sudo chown -R $USER:$USER .terraform 2>/dev/null || true
-
-# Try to remove .terraform; ignore permission denied errors
-#rm -rf .terraform 2>/dev/null || echo "Warning: Could not delete .terraform directory."
-
-# Remove Terraform state files safely
-#rm -f terraform.tfstate terraform.tfstate.backup 2>/dev/null || echo "Warning: Could not delete state files."
-
-# Remove the terraform.lock.hcl file to ensure a fresh provider initialization
-#echo "Removing terraform.lock.hcl file..."
-#rm -f "${TF_DIR}/.terraform.lock.hcl" 2>/dev/null || echo "Warning: Could not delete terraform.lock.hcl."
 
 echo "Proceeding with terraform init..."
 terraform init
@@ -107,7 +92,7 @@ RDS_ENDPOINT=$(terraform output -raw db_endpoint)
 DB_NAME_OUTPUT=$(terraform output -raw db_name)         # Get DB Name output
 DB_USERNAME_OUTPUT=$(terraform output -raw db_username) # Get DB Username output
 DB_PORT_OUTPUT="5432" # Standard PostgreSQL port
-
+DOMAIN_NAME=api.streamsflix.online
 echo "Waiting for the EC2 instance to be ready..."
 sleep 60 # Keep a reasonable wait time
 
@@ -120,91 +105,13 @@ DB_PORT=${DB_PORT_OUTPUT}
 DB_NAME=${DB_NAME_OUTPUT}
 DB_USERNAME=${DB_USERNAME_OUTPUT}
 DB_PASSWORD=${DB_PASSWORD}
-AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+AWS_ACCESS_KEY=${AWS_ACCESS_KEY_ID}
+AWS_SECRET_KEY=${AWS_SECRET_ACCESS_KEY}
 AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
 AWS_REGION=${AWS_REGION}
-NEXT_PUBLIC_API_URL=http://${EC2_PUBLIC_IP}/api
+DOMAIN_NAME=${DOMAIN_NAME}
 EOF
 echo ".env file created at ${ENV_FILE_PATH}"
-
-# Create Next.js environment file
-NEXT_ENV_FILE="${DOCKER_DIR}/.env"
-cat > "${NEXT_ENV_FILE}" << EOF
-NEXT_PUBLIC_API_URL=http://${EC2_PUBLIC_IP}/api
-JWT_SECRET_KEY=gT1oV8xJdPb0x8Gb3XyXzjUG5KvRl9+BfayGmB/L7F1UJZnZPxxLQlVfdGzR5d1hQek0bsDzQy7VudZnFtzz5w==
-NEXT_PUBLIC_S3_BUCKET_HOSTNAME=streamflixbucket.s3.amazonaws.com
-NEXT_PUBLIC_S3_BUCKET_NAME=streamflixbucket
-EOF
-echo "Next.js .env file created at ${NEXT_ENV_FILE}"
-
-# Create nginx config directory locally first
-mkdir -p "${DOCKER_DIR}/nginx"
-
-# Create nginx config file locally
-cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
-    server {
-        listen        80 default_server;
-        server_name api.streamsflix.online; # Updated domain name
-        access_log    /var/log/nginx/access.log main;
-
-        client_header_timeout 60;
-        client_body_timeout   60;
-        keepalive_timeout     60;
-        gzip                  off;
-        gzip_comp_level       4;
-        gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript;
-        
-        # Redirect HTTP to HTTPS
-        location / {
-            return 301 https://\$host\$request_uri;
-        }
-        
-        location /.well-known/acme-challenge/ {
-            root /var/www/certbot;
-            allow all;
-        }
-
-        # Include the Elastic Beanstalk generated locations (if applicable, otherwise remove)
-        # include conf.d/elasticbeanstalk/*.conf; 
-    }
-     # HTTPS server
-    server {
-        listen 443 ssl;
-        server_name api.streamsflix.online; # Updated domain name
-
-        ssl_certificate /etc/letsencrypt/live/api.streamsflix.online/fullchain.pem; # Updated domain name
-        ssl_certificate_key /etc/letsencrypt/live/api.streamsflix.online/privkey.pem; # Updated domain name
-
-        ssl_protocols TLSv1.2 TLSv1.3;
-        ssl_ciphers HIGH:!aNULL:!MD5;
-
-    # Security headers (optional but recommended)
-        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-        add_header X-Frame-Options DENY;
-        add_header X-Content-Type-Options nosniff;
-
-        # Main proxy or app location
-        location / {
-            proxy_pass http://api:5000; # Proxy to the 'api' service in docker-compose
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade \$http_upgrade;
-            proxy_set_header Connection 'upgrade';
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-            proxy_cache_bypass \$http_upgrade;
-        }
-    }
-
-    # Health check endpoint
-    location /health {
-        access_log off;
-        return 200 'healthy';
-    }
-}
-EOF
 
 # First clone the repositories to create the directories
 echo "Cloning repositories to EC2 instance..."
@@ -215,63 +122,203 @@ ssh -i "${KEY_PATH}" \
     -o StrictHostKeyChecking=no \
     ubuntu@${EC2_PUBLIC_IP} \
     "git clone https://github.com/tangweilun/BackendStreamflix.git /home/ubuntu/app"
-    
-ssh -i "${KEY_PATH}" \
-    -o StrictHostKeyChecking=no \
-    ubuntu@${EC2_PUBLIC_IP} \
-    "git clone https://github.com/tangweilun/Streamflix.git /home/ubuntu/frontend"
 
-# Now that the directories exist, copy the environment files
-echo "Copying environment files to EC2 instance..."
-scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
-    "${NEXT_ENV_FILE}" \
-    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/frontend/.env"
+# Create required directories and install dependencies on EC2 instance
+echo "Setting up directories and installing dependencies on EC2 instance..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
+# Create necessary directories
+mkdir -p /home/ubuntu/app/nginx
+mkdir -p /home/ubuntu/app/deployment/docker
+sudo mkdir -p /var/www/certbot
+sudo mkdir -p /etc/letsencrypt/live/api.streamsflix.online
 
-# Create nginx directory in app directory
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" "mkdir -p /home/ubuntu/app/nginx"
+# Install certbot and nginx (needed for certbot's nginx plugin)
+sudo apt-get update
+sudo apt-get install -y certbot python3-certbot-nginx nginx
+EOF
 
 # Copy the .env file for the backend
 scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
     "${DOCKER_DIR}/.env" \
-    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/deployment/docker"
+    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/deployment/docker/"
 
-# Copy nginx config
+# Set proper permissions for the .env file
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
+    "chmod 600 /home/ubuntu/app/deployment/docker/.env"
+
+# Generate a temporary nginx configuration file for initial setup
+# This configuration doesn't depend on SSL certificates
+echo "Creating temporary nginx configuration for certificate generation..."
+cat > "${DOCKER_DIR}/nginx/temp-nginx.conf" << EOF
+server {
+    listen 80 default_server;
+    server_name api.streamsflix.online streamsflix.online;
+    
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        allow all;
+    }
+    
+    location / {
+        return 200 'Certification in progress';
+    }
+}
+EOF
+
+# Copy temporary nginx config to EC2
+scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
+    "${DOCKER_DIR}/nginx/temp-nginx.conf" \
+    "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/nginx/nginx.conf"
+
+# Configure and start Nginx for certificate generation
+echo "Configuring nginx for certificate generation..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
+# Stop any running nginx to free up port 80
+sudo systemctl stop nginx || true
+sudo docker stop $(sudo docker ps -q --filter "name=nginx") 2>/dev/null || true
+
+# Use the temporary nginx config
+sudo cp /home/ubuntu/app/nginx/nginx.conf /etc/nginx/sites-available/default
+sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+sudo systemctl start nginx
+EOF
+
+# Generate SSL certificates with standalone mode
+echo "Generating SSL certificates..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
+# Stop nginx to free port 80 for certbot
+sudo systemctl stop nginx
+
+# Run certbot in standalone mode
+sudo certbot certonly --standalone \
+  --non-interactive \
+  --agree-tos \
+  --register-unsafely-without-email \
+  --domains streamsflix.online,api.streamsflix.online
+
+# Fix permissions
+sudo chmod -R 755 /etc/letsencrypt/{live,archive}
+EOF
+
+# Now create the final nginx config that uses SSL
+echo "Creating final nginx configuration with SSL..."
+cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
+server {
+    listen 80 default_server;
+    server_name api.streamsflix.online; 
+    access_log /var/log/nginx/access.log main;
+
+    client_header_timeout 60;
+    client_body_timeout 60;
+    keepalive_timeout 60;
+    gzip off;
+    gzip_comp_level 4;
+    gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+    
+    # Redirect HTTP to HTTPS
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+    
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        allow all;
+    }
+
+    # Include the Elastic Beanstalk generated locations (if applicable, otherwise remove)
+    include conf.d/elasticbeanstalk/*.conf; 
+}
+
+# HTTPS server
+server {
+    listen 443 ssl;
+    server_name api.streamsflix.online;
+
+    ssl_certificate /etc/letsencrypt/live/api.streamsflix.online/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.streamsflix.online/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # Security headers (optional but recommended)
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+
+    # Main proxy or app location
+    location / {
+        proxy_pass http://api:5000; # Proxy to the 'api' service in docker-compose
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+    }
+    
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 'healthy';
+    }
+}
+EOF
+
+# Copy final nginx config
 scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
     "${DOCKER_DIR}/nginx/nginx.conf" \
     "ubuntu@${EC2_PUBLIC_IP}:/home/ubuntu/app/nginx/"
 
-# Setup Next.js frontend
-echo "Setting up Next.js frontend..."
-ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
-# Navigate to frontend directory
-cd /home/ubuntu/frontend
-
-# Install Node.js and npm if not already installed
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Install dependencies and build the Next.js app
-npm install
-npm run build
-
-# Install PM2 to manage the Next.js process
-sudo npm install -g pm2
-
-# Start the Next.js app with PM2
-pm2 start npm --name "nextjs-frontend" -- start
-pm2 save
-pm2 startup
-sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu
-EOF
-    
+# Starting the application with Docker Compose
 echo "Starting Docker Compose on EC2 instance..."
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
+# Stop nginx to free up port 80 for Docker
+sudo systemctl stop nginx
+
+# Ensure proper directories and permissions for Docker volumes
+sudo mkdir -p /etc/letsencrypt
+sudo mkdir -p /var/www/certbot
+
+# Copy certificates to Docker-accessible location if needed
+# (Only needed if Docker containers can't directly access /etc/letsencrypt)
+
 # Start Docker Compose
 cd /home/ubuntu/app/deployment/docker
-sudo docker compose up -d --remove-orphans
+# Make sure the .env file has the correct permissions
+chmod 600 .env
+# Export environment variables from .env file to ensure they're available
+export $(grep -v '^#' .env | xargs)
+# Use the -E flag to preserve the environment variables when using sudo
+sudo -E docker compose up -d --remove-orphans
+EOF
+
+# Setup certbot renewal cron job
+echo "Setting up automatic certificate renewal..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
+# Create a renewal script
+cat > /home/ubuntu/renew-certs.sh << 'INNER'
+#!/bin/bash
+# Stop nginx container
+sudo docker stop $(sudo docker ps -q --filter "name=nginx") 2>/dev/null || true
+
+# Renew certs
+sudo certbot renew --standalone
+
+# Restart nginx container
+cd /home/ubuntu/app/deployment/docker
+sudo -E docker compose up -d nginx
+INNER
+
+# Make the script executable
+chmod +x /home/ubuntu/renew-certs.sh
+
+# Add to crontab to run twice daily (standard for certbot)
+(crontab -l 2>/dev/null || echo "") | grep -v "renew-certs.sh" | { cat; echo "0 0,12 * * * /home/ubuntu/renew-certs.sh > /home/ubuntu/certbot-renewal.log 2>&1"; } | crontab -
 EOF
 
 echo "Deployment complete!"
-echo "Your frontend is available at: http://${EC2_PUBLIC_IP}"
-echo "Your API is available at: http://${EC2_PUBLIC_IP}/api"
+echo "Your API is available at: https://api.streamsflix.online"
+echo "Your website is available at: https://streamsflix.online"
 echo "PostgreSQL RDS is available at: ${RDS_ENDPOINT}"
