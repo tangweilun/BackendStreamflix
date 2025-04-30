@@ -70,14 +70,14 @@ echo "Attempting to clean up previous Terraform state..."
 sudo chown -R $USER:$USER .terraform 2>/dev/null || true
 
 # Try to remove .terraform; ignore permission denied errors
-rm -rf .terraform 2>/dev/null || echo "Warning: Could not delete .terraform directory."
+#rm -rf .terraform 2>/dev/null || echo "Warning: Could not delete .terraform directory."
 
 # Remove Terraform state files safely
-rm -f terraform.tfstate terraform.tfstate.backup 2>/dev/null || echo "Warning: Could not delete state files."
+#rm -f terraform.tfstate terraform.tfstate.backup 2>/dev/null || echo "Warning: Could not delete state files."
 
 # Remove the terraform.lock.hcl file to ensure a fresh provider initialization
-echo "Removing terraform.lock.hcl file..."
-rm -f "${TF_DIR}/.terraform.lock.hcl" 2>/dev/null || echo "Warning: Could not delete terraform.lock.hcl."
+#echo "Removing terraform.lock.hcl file..."
+#rm -f "${TF_DIR}/.terraform.lock.hcl" 2>/dev/null || echo "Warning: Could not delete terraform.lock.hcl."
 
 echo "Proceeding with terraform init..."
 terraform init
@@ -86,8 +86,19 @@ terraform init
 echo "Setting execute permissions for Terraform providers..."
 find .terraform/providers -type f -name 'terraform-provider-*' -exec chmod +x {} \;
 
+# Ask if user wants to create a new Elastic IP or use existing one
+read -p "Create a new Elastic IP? (yes/no, default: yes): " CREATE_EIP
+CREATE_EIP=${CREATE_EIP:-yes}
+
+if [[ "${CREATE_EIP,,}" == "yes" ]]; then
+  CREATE_EIP_VAR="true"
+else
+  CREATE_EIP_VAR="false"
+fi
+
+# In the terraform apply section, add the new variable
 echo "Applying Terraform configuration..."
-terraform apply -var="aws_region=${AWS_REGION}" -var="db_password=${DB_PASSWORD}" -auto-approve
+terraform apply -var="aws_region=${AWS_REGION}" -var="db_password=${DB_PASSWORD}" -var="create_elastic_ip=${CREATE_EIP_VAR}" -auto-approve
 
 # Get outputs
 echo "Retrieving Terraform outputs..."
@@ -132,34 +143,59 @@ mkdir -p "${DOCKER_DIR}/nginx"
 
 # Create nginx config file locally
 cat > "${DOCKER_DIR}/nginx/nginx.conf" << EOF
-server {
-    listen 80 default_server;
-    server_name _;
-    access_log /var/log/nginx/access.log main;
+    server {
+        listen        80 default_server;
+        server_name api.streamsflix.online; # Updated domain name
+        access_log    /var/log/nginx/access.log main;
 
-    # Frontend Next.js app
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
+        client_header_timeout 60;
+        client_body_timeout   60;
+        keepalive_timeout     60;
+        gzip                  off;
+        gzip_comp_level       4;
+        gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+        
+        # Redirect HTTP to HTTPS
+        location / {
+            return 301 https://\$host\$request_uri;
+        }
+        
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+            allow all;
+        }
+
+        # Include the Elastic Beanstalk generated locations (if applicable, otherwise remove)
+        # include conf.d/elasticbeanstalk/*.conf; 
     }
+     # HTTPS server
+    server {
+        listen 443 ssl;
+        server_name api.streamsflix.online; # Updated domain name
 
-    # Backend API
-    location /api/ {
-        proxy_pass http://api:5000/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection keep-alive;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
+        ssl_certificate /etc/letsencrypt/live/api.streamsflix.online/fullchain.pem; # Updated domain name
+        ssl_certificate_key /etc/letsencrypt/live/api.streamsflix.online/privkey.pem; # Updated domain name
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # Security headers (optional but recommended)
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+        add_header X-Frame-Options DENY;
+        add_header X-Content-Type-Options nosniff;
+
+        # Main proxy or app location
+        location / {
+            proxy_pass http://api:5000; # Proxy to the 'api' service in docker-compose
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto \$scheme;
+            proxy_cache_bypass \$http_upgrade;
+        }
     }
 
     # Health check endpoint
