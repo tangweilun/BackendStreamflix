@@ -82,11 +82,20 @@ resource "aws_security_group" "app_sg" {
   name        = "${local.resource_name}-sg"
   description = "Security group for Streamflix application"
 
-  # HTTP access for web application
+  # HTTP access for web application (optional, can be removed if redirecting all to HTTPS)
   ingress {
     description = "HTTP traffic"
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = var.allowed_cidr
+  }
+
+  # HTTPS access for web application
+  ingress {
+    description = "HTTPS traffic"
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = var.allowed_cidr
   }
@@ -100,7 +109,9 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = var.allowed_cidr
   }
 
-  # Application port access
+  # Application port access (Internal - Nginx proxies to this)
+  # Consider restricting this to only the Nginx instance/security group if possible,
+  # but allowing from all CIDRs is okay if Nginx is running on the same instance.
   ingress {
     description = "Application port access"
     from_port   = var.app_port
@@ -164,49 +175,21 @@ resource "aws_instance" "app_server" {
   )
 }
 
-# CloudWatch alarm to monitor instance status
-resource "aws_cloudwatch_metric_alarm" "instance_status" {
-  alarm_name          = "${local.resource_name}-status-alarm"
-  comparison_operator = "GreaterThanOrEqualToThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "StatusCheckFailed"
-  namespace           = "AWS/EC2"
-  period              = "60"
-  statistic           = "Maximum"
-  threshold           = "1"
-  alarm_description   = "This metric monitors EC2 instance status checks"
-  
-  dimensions = {
-    InstanceId = aws_instance.app_server.id
-  }
 
-  tags = local.common_tags
-}
-
-# Output values with improved documentation
-output "public_ip" {
-  description = "Public IP address of the deployed instance"
-  value       = aws_instance.app_server.public_ip
-}
-
-output "public_dns" {
-  description = "Public DNS of the deployed instance"
-  value       = aws_instance.app_server.public_dns
-}
-
+# Update these outputs to use the Elastic IP
 output "ssh_command" {
   description = "SSH command to connect to the instance"
-  value       = "ssh -i ${var.key_name}.pem ubuntu@${aws_instance.app_server.public_ip}"
+  value       = "ssh -i ${var.key_name}.pem ubuntu@${var.create_elastic_ip ? aws_eip.app_eip[0].public_ip : data.aws_eips.existing[0].public_ips[0]}"
 }
 
 output "website_url" {
   description = "URL to access the web application"
-  value       = "http://${aws_instance.app_server.public_ip}"
+  value       = "http://${var.create_elastic_ip ? aws_eip.app_eip[0].public_ip : data.aws_eips.existing[0].public_ips[0]}"
 }
 
 output "application_url" {
   description = "URL to access the application directly"
-  value       = "http://${aws_instance.app_server.public_ip}:${var.app_port}"
+  value       = "http://${var.create_elastic_ip ? aws_eip.app_eip[0].public_ip : data.aws_eips.existing[0].public_ips[0]}:${var.app_port}"
 }
 
 # Add RDS PostgreSQL variables
@@ -278,7 +261,7 @@ resource "aws_security_group" "rds_sg" {
 resource "aws_db_instance" "postgres" {
   identifier             = "${local.name_prefix}-${local.timestamp}-db"
   engine                 = "postgres"
-  engine_version         = "17.4"  # Changed from 14.7 to 17.4 which is supported
+  engine_version         = "17.4" 
   instance_class         = var.db_instance_class
   allocated_storage      = 20
   max_allocated_storage  = 100
@@ -328,4 +311,55 @@ output "connection_string" {
   description = "PostgreSQL connection string (without password)"
   value       = "Host=${aws_db_instance.postgres.endpoint};Database=${aws_db_instance.postgres.db_name};Username=${aws_db_instance.postgres.username};Password=<password>"
   sensitive   = false
+}
+
+# Variable to control whether to create a new Elastic IP or use existing one
+variable "create_elastic_ip" {
+  description = "Whether to create a new Elastic IP address"
+  type        = bool
+  default     = true
+}
+
+# Data source to find existing Elastic IP by tag if not creating a new one
+data "aws_eips" "existing" {
+  count = var.create_elastic_ip ? 0 : 1
+  
+  tags = {
+    Application = "Streamflix"
+  }
+}
+
+# Create a new Elastic IP if specified
+resource "aws_eip" "app_eip" {
+  count = var.create_elastic_ip ? 1 : 0
+  
+  domain = "vpc"
+  
+  tags = merge(
+    local.common_tags,
+    {
+      Name = "${local.resource_name}-eip"
+    }
+  )
+  
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+# Associate Elastic IP with EC2 instance
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.app_server.id
+  allocation_id = var.create_elastic_ip ? aws_eip.app_eip[0].id : data.aws_eips.existing[0].allocation_ids[0]
+}
+
+# Update outputs to use the Elastic IP
+output "public_ip" {
+  description = "Public IP address of the deployed instance"
+  value       = var.create_elastic_ip ? aws_eip.app_eip[0].public_ip : data.aws_eips.existing[0].public_ips[0]
+}
+
+output "public_dns" {
+  description = "Public DNS of the deployed instance"
+  value       = aws_instance.app_server.public_dns
 }

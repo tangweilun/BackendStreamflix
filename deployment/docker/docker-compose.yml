@@ -15,7 +15,7 @@ services:
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
       - AWS_REGION=${AWS_REGION}
       - ConnectionStrings__DbConnection=Host=${DB_HOST};Database=${DB_NAME};Username=${DB_USERNAME};Password=${DB_PASSWORD}
-      - DOMAIN_NAME=streamsflix.online
+      - DOMAIN_NAME=api.streamsflix.online # Updated domain name
     depends_on:
       - db
       - migrations

@@ -22,8 +22,9 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
-        policy => policy.WithOrigins("http://localhost:3000")  // Allow Next.js frontend
-                        .SetIsOriginAllowed(_ => true)  // Allows dynamic origins if needed
+        policy => policy.WithOrigins("http://localhost:3000", "https://streamsflix.online") // Add your production frontend origin
+                        .SetIsOriginAllowedToAllowWildcardSubdomains() // Optional: Allows *.streamsflix.online if needed
+                        // .SetIsOriginAllowed(_ => true) // Consider removing this for stricter control in production
                         .AllowAnyMethod()
                         .AllowCredentials() // Allow cookies
                         .AllowAnyHeader());
@@ -51,10 +52,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
                 builder.Configuration["JWT:SecretKey"])),
-            ValidateIssuer = false,
-            ValidateAudience = false,   
-            //ValidIssuer = builder.Configuration["JWT:Issuer"],
-            //ValidAudience = builder.Configuration["JWT:Audience"],
+            ValidateIssuer = true, // Enable Issuer validation
+            ValidateAudience = true, // Enable Audience validation
+            ValidIssuer = builder.Configuration["JWT:Issuer"], // Use value from appsettings.json
+            ValidAudience = builder.Configuration["JWT:Audience"], // Use value from appsettings.json
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
@@ -241,6 +242,13 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 // Enable CORS
 app.UseCors("AllowSpecificOrigin");  // Add this before app.UseAuthorization()
+
+// Forward headers if behind a proxy (like Nginx)
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<AdminMiddleware>();
