@@ -372,7 +372,7 @@ EOF
 # Print SSH command and Elastic IP information
 echo "=============================================="
 echo "Connection Information:"
-echo "SSH Command: ssh -i ${KEY_PATH} ubuntu@${EC2_PUBLIC_IP}"
+echo "SSH Command: ssh -i ~/.ssh/vockey.pem ubuntu@${EC2_PUBLIC_IP}"
 echo "Elastic IP Address: ${EC2_PUBLIC_IP}"
 echo "=============================================="
 

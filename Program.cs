@@ -269,7 +269,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<AdminMiddleware>();
+//app.UseMiddleware<AdminMiddleware>();
 app.MapControllers();
 
 app.MapControllerRoute(
