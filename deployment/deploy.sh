@@ -116,7 +116,7 @@ echo ".env file created at ${ENV_FILE_PATH}"
 # First clone the repositories to create the directories
 echo "Cloning repositories to EC2 instance..."
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
-  "sudo apt-get update && sudo apt-get install -y git"
+  "sudo apt-get update && sudo apt-get install -y git jq"
 
 ssh -i "${KEY_PATH}" \
     -o StrictHostKeyChecking=no \
@@ -145,6 +145,33 @@ scp -i "${KEY_PATH}" -o StrictHostKeyChecking=no \
 # Set proper permissions for the .env file
 ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" \
     "chmod 600 /home/ubuntu/app/deployment/docker/.env"
+
+# Use jq to replace environment variables in appsettings.json
+echo "Updating appsettings.json with environment variables..."
+ssh -i "${KEY_PATH}" -o StrictHostKeyChecking=no "ubuntu@${EC2_PUBLIC_IP}" << 'EOF'
+# Source the .env file to get environment variables
+source /home/ubuntu/app/deployment/docker/.env
+
+# Use jq to replace variables in appsettings.json
+jq --arg db_host "$DB_HOST" \
+   --arg db_name "$DB_NAME" \
+   --arg db_username "$DB_USERNAME" \
+   --arg db_password "$DB_PASSWORD" \
+   --arg aws_access_key "$AWS_ACCESS_KEY" \
+   --arg aws_secret_key "$AWS_SECRET_KEY" \
+   --arg aws_session_token "$AWS_SESSION_TOKEN" \
+   '.ConnectionStrings.DbConnection = "Host=\($db_host);Database=\($db_name);Username=\($db_username);Password=\($db_password);TrustServerCertificate=true" | 
+    .AWS.AccessKey = $aws_access_key | 
+    .AWS.SecretKey = $aws_secret_key | 
+    .AWS.SessionToken = $aws_session_token' \
+   /home/ubuntu/app/appsettings.json > /home/ubuntu/app/appsettings.json.updated
+
+# Backup the original file and replace with the updated one
+mv /home/ubuntu/app/appsettings.json /home/ubuntu/app/appsettings.json.bak
+mv /home/ubuntu/app/appsettings.json.updated /home/ubuntu/app/appsettings.json
+
+echo "appsettings.json has been updated with actual values from .env file"
+EOF
 
 # Generate a temporary nginx configuration file for initial setup
 # This configuration doesn't depend on SSL certificates
@@ -194,7 +221,7 @@ sudo certbot certonly --standalone \
   --non-interactive \
   --agree-tos \
   --register-unsafely-without-email \
-  --domains streamsflix.online,api.streamsflix.online
+  --domains api.streamsflix.online
 
 # Fix permissions
 sudo chmod -R 755 /etc/letsencrypt/{live,archive}
@@ -317,6 +344,13 @@ chmod +x /home/ubuntu/renew-certs.sh
 # Add to crontab to run twice daily (standard for certbot)
 (crontab -l 2>/dev/null || echo "") | grep -v "renew-certs.sh" | { cat; echo "0 0,12 * * * /home/ubuntu/renew-certs.sh > /home/ubuntu/certbot-renewal.log 2>&1"; } | crontab -
 EOF
+
+# Print SSH command and Elastic IP information
+echo "=============================================="
+echo "Connection Information:"
+echo "SSH Command: ssh -i ${KEY_PATH} ubuntu@${EC2_PUBLIC_IP}"
+echo "Elastic IP Address: ${EC2_PUBLIC_IP}"
+echo "=============================================="
 
 echo "Deployment complete!"
 echo "Your API is available at: https://api.streamsflix.online"

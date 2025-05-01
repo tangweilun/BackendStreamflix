@@ -179,7 +179,7 @@ resource "aws_instance" "app_server" {
 # Update these outputs to use the Elastic IP
 output "ssh_command" {
   description = "SSH command to connect to the instance"
-  value       = "ssh -i ${var.key_name}.pem ubuntu@${var.create_elastic_ip ? aws_eip.app_eip[0].public_ip : data.aws_eips.existing[0].public_ips[0]}"
+  value       = "ssh -i ~/.ssh/${var.key_name}.pem ubuntu@${var.create_elastic_ip ? aws_eip.app_eip[0].public_ip : data.aws_eips.existing[0].public_ips[0]}"
 }
 
 output "website_url" {
