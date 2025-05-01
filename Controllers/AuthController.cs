@@ -24,7 +24,6 @@ namespace Streamflix.Controllers
             _tokenService = tokenService;
             _emailService = emailService;
             _configuration = configuration;
-
         }
 
         [HttpPost("register")]
@@ -49,6 +48,10 @@ namespace Streamflix.Controllers
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
             var token = _tokenService.CreateToken(user);
+            
+            // Set the token as a cookie
+            SetAuthCookie(token);
+            
             return new AuthResponseDto
             {
                 Token = token,
@@ -72,6 +75,10 @@ namespace Streamflix.Controllers
                 return Unauthorized("Invalid email or password");
             }
             var token = _tokenService.CreateToken(user);
+            
+            // Set the token as a cookie
+            SetAuthCookie(token);
+            
             return new AuthResponseDto
             {
                 Token = token,
@@ -79,6 +86,43 @@ namespace Streamflix.Controllers
                 Email = user.Email,
                 IsAdmin = user.IsAdmin
             };
+        }
+        
+        // Helper method to set the authentication cookie
+        private void SetAuthCookie(string token)
+        {
+            // Determine environment based on request host
+            bool isDevelopment = IsLocalEnvironment();
+            
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Expires = DateTime.UtcNow.AddDays(7) // Or whatever expiration you need
+            };
+            
+            // Configure based on environment
+            if (isDevelopment)
+            {
+                // Local development settings
+                cookieOptions.SameSite = SameSiteMode.Lax;
+                cookieOptions.Secure = false; // Allow HTTP for localhost
+            }
+            else
+            {
+                // Production settings
+                cookieOptions.SameSite = SameSiteMode.None; // For cross-domain
+                cookieOptions.Secure = true; // For HTTPS
+                cookieOptions.Domain = ".streamsflix.online"; // Note the leading dot for all subdomains
+            }
+            
+            Response.Cookies.Append("authToken", token, cookieOptions);
+        }
+        
+        // Helper method to determine if we're in a local environment
+        private bool IsLocalEnvironment()
+        {
+            var host = Request.Host.Host.ToLower();
+            return host.Contains("localhost") || host.Contains("127.0.0.1") || host == "::1";
         }
 
         [HttpPost("forgot-password")]
