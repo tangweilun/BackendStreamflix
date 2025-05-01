@@ -18,7 +18,6 @@ services:
       - DOMAIN_NAME=api.streamsflix.online # Updated domain name
     depends_on:
       - db
-      - migrations
     restart: always
     networks:
       - streamflix-network
@@ -29,27 +28,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
-  migrations:
-    build:
-      context: ../../
-      dockerfile: deployment/docker/Dockerfile
-    depends_on:
-      - db
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
-      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
-      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
-      - AWS_REGION=${AWS_REGION}
-      - ConnectionStrings__DbConnection=Host=${DB_HOST};Database=${DB_NAME};Username=${DB_USERNAME};Password=${DB_PASSWORD};TrustServerCertificate=true
-    command: >
-      sh -c "dotnet tool restore &&
-             dotnet ef database update"
-    networks:
-      - streamflix-network
-    env_file:
-      - .env
 
   nginx:
     image: nginx:alpine

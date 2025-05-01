@@ -238,6 +238,24 @@ if (app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+// Apply migrations automatically at startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    Console.WriteLine("Applying database migrations...");
+    try
+    {
+        dbContext.Database.Migrate();
+        Console.WriteLine("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"An error occurred while applying migrations: {ex.Message}");
+        // Consider whether to throw the exception or continue
+        // If migrations are critical, you might want to throw
+        // throw;
+    }
+}
 
 app.UseHttpsRedirection();
 // Enable CORS
