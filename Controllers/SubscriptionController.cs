@@ -19,11 +19,13 @@ namespace Streamflix.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly StripeSettings _stripeSettings;
+        private readonly IConfiguration _configuration;
 
-        public SubscriptionController(ApplicationDbContext context, IOptions<StripeSettings> stripeSettings)
+        public SubscriptionController(ApplicationDbContext context, IOptions<StripeSettings> stripeSettings, IConfiguration configuration)
         {
             _context = context;
             _stripeSettings = stripeSettings.Value;
+            _configuration = configuration;
         }
 
         [HttpGet("get-all-plans")]
