@@ -43,7 +43,6 @@ namespace Streamflix.Controllers
         }
 
         [HttpGet("get-subscribed-plan")]
-        [Authorize]
         public async Task<IActionResult> GetSubscribedPlan()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

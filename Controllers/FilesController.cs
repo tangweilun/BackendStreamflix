@@ -25,7 +25,6 @@ namespace Streamflix.Controllers
 
         // Function 1: Create a Show (Folder)
         [HttpPost("create-show")]
-        [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> CreateShowAsync(string bucketName, [FromForm] string showId, [FromForm] IFormFile? thumbnail)
         {
             var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
@@ -62,7 +61,6 @@ namespace Streamflix.Controllers
         }
 
         [HttpGet("list-shows")]
-        [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> ListShowsAsync(string bucketName)
         {
             try
@@ -124,7 +122,6 @@ namespace Streamflix.Controllers
 
 
         [HttpGet("get-show-thumbnail")]
-        [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> GetShowThumbnail(string bucketName, string showId)
         {
             var listRequest = new ListObjectsV2Request
@@ -155,7 +152,6 @@ namespace Streamflix.Controllers
 
 
         [HttpPost("upload-episode")]
-        [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> UploadEpisodeAsync(
         [FromForm] string bucketName,
         [FromForm] string showTitle, // Receive showTitle instead of showId
@@ -207,8 +203,6 @@ namespace Streamflix.Controllers
 
         //Existing Function: Get All Files
         [HttpGet]
-        [EnableCors("AllowSpecificOrigin")]
-
         public async Task<IActionResult> GetAllFilesAsync(string bucketName, string? prefix)
         {
             var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
@@ -240,8 +234,6 @@ namespace Streamflix.Controllers
 
         //Existing Function: Preview File
         [HttpGet("preview")]
-        [EnableCors("AllowSpecificOrigin")]
-
         public async Task<IActionResult> GetFileByKeyAsync(string bucketName, string key)
         {
             var bucketExists = await Amazon.S3.Util.AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucketName);
@@ -251,10 +243,9 @@ namespace Streamflix.Controllers
             return File(s3Object.ResponseStream, s3Object.Headers.ContentType);
         }
         [HttpGet("watch")]
-        [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> WatchVideoAsync(string showName)
         {
-            string bucketName = "streamflixbucket";
+            string bucketName = "streamflixbuckettest";
             string[] extensions = { ".mp4", ".mov", ".webm" }; // Add any other supported formats
 
             var episodeList = new List<object>();
@@ -308,7 +299,6 @@ namespace Streamflix.Controllers
         }
         // Existing Function: Delete File
         [HttpDelete]
-        [EnableCors("AllowSpecificOrigin")]
         public async Task<IActionResult> DeletePrefixAsync(string bucketName, string prefix)
         {
             if (!prefix.StartsWith("shows/"))
@@ -356,7 +346,5 @@ namespace Streamflix.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
-
-
     }
 }

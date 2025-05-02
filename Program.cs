@@ -23,8 +23,6 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
         policy => policy.WithOrigins("http://localhost:3000", "https://streamsflix.online") // Add your production frontend origin
-                        .SetIsOriginAllowedToAllowWildcardSubdomains() // Optional: Allows *.streamsflix.online if needed
-                        // .SetIsOriginAllowed(_ => true) // Consider removing this for stricter control in production
                         .AllowAnyMethod()
                         .AllowCredentials() // Allow cookies
                         .AllowAnyHeader());
