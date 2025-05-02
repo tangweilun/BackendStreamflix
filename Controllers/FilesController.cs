@@ -150,7 +150,7 @@ namespace Streamflix.Controllers
 
 
 
-
+        [DisableRequestSizeLimit]
         [HttpPost("upload-episode")]
         public async Task<IActionResult> UploadEpisodeAsync(
         [FromForm] string bucketName,

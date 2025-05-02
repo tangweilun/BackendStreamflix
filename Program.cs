@@ -22,7 +22,7 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin",
-        policy => policy.WithOrigins("http://localhost:3000", "https://streamsflix.online") // Add your production frontend origin
+        policy => policy.WithOrigins("https://streamsflix.online", "http://localhost:3000") // Add your production frontend origin
                         .AllowAnyMethod()
                         .AllowCredentials() // Allow cookies
                         .AllowAnyHeader());
