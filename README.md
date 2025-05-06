@@ -7,27 +7,27 @@ Streamflix is a comprehensive backend system for a video streaming platform, des
 ## ✨ Features
 
 - **User Management:**
-  - Secure user registration and login (<mcsymbol name="AuthController.Register" filename="AuthController.cs" path="Streamflix/Controllers/AuthController.cs" startline="23" type="function"></mcsymbol>, <mcsymbol name="AuthController.Login" filename="AuthController.cs" path="Streamflix/Controllers/AuthController.cs" startline="55" type="function"></mcsymbol>).
+  - Secure user registration and login (`AuthController.Register()`, `AuthController.Login()`).
   - JWT-based authentication and authorization.
-  - Password reset functionality via email (<mcsymbol name="AuthController.ForgotPassword" filename="AuthController.cs" path="Streamflix/Controllers/AuthController.cs" startline="100" type="function"></mcsymbol>, <mcsymbol name="AuthController.ResetPassword" filename="AuthController.cs" path="Streamflix/Controllers/AuthController.cs" startline="135" type="function"></mcsymbol>).
-  - User profile management (<mcsymbol name="UserController.GetUserProfile" filename="UserController.cs" path="Streamflix/Controllers/UserController.cs" startline="20" type="function"></mcsymbol>).
+  - Password reset functionality via email (`AuthController.ForgotPassword()`, `AuthController.ResetPassword()`).
+  - User profile management (`UserController.GetUserProfile()`).
 - **Admin Capabilities:**
-  - Fetch all users (<mcsymbol name="AdminController.GetAllUsers" filename="AdminController.cs" path="Streamflix/Controllers/AdminController.cs" startline="17" type="function"></mcsymbol>).
-  - Update user roles (e.g., grant admin privileges) (<mcsymbol name="AdminController.ChangeUserRole" filename="AdminController.cs" path="Streamflix/Controllers/AdminController.cs" startline="25" type="function"></mcsymbol>).
+  - Fetch all users (`AdminController.GetAllUsers()`).
+  - Update user roles (e.g., grant admin privileges) (`AdminController.ChangeUserRole()`).
 - **Video Content Management:**
-  - CRUD operations for videos, genres, and actors (<mcsymbol name="VideosController" filename="VideoController.cs" path="Streamflix/Controllers/VideoController.cs" startline="15" type="class"></mcsymbol>).
+  - CRUD operations for videos, genres, and actors (`VideosController` class).
   - Categorization of videos by genres.
   - Association of cast members with videos.
 - **Video Streaming & Storage:**
-  - Integration with AWS S3 for scalable video and thumbnail storage (<mcsymbol name="FilesController" filename="FilesController.cs" path="Streamflix/Controllers/FilesController.cs" startline="15" type="class"></mcsymbol>).
-  - Management of S3 buckets (<mcsymbol name="BucketsController" filename="BucketsController.cs" path="Streamflix/Controllers/BucketsController.cs" startline="10" type="class"></mcsymbol>).
+  - Integration with AWS S3 for scalable video and thumbnail storage (`FilesController` class).
+  - Management of S3 buckets (`BucketsController` class).
   - Functionality to create shows (folders in S3) and upload video files, including multipart uploads for large files.
 - **User Experience Features:**
-  - Subscription management with Stripe integration for payments (<mcsymbol name="SubscriptionController" filename="SubscriptionController.cs" path="Streamflix/Controllers/SubscriptionController.cs" startline="17" type="class"></mcsymbol>).
-  - Watch history tracking for users (<mcsymbol name="WatchHistoryController.UpdateProgress" filename="WatchHistoryController.cs" path="Streamflix/Controllers/WatchHistoryController.cs" startline="23" type="function"></mcsymbol>).
-  - Ability for users to mark videos as favorites (<mcsymbol name="FavoriteVideosController" filename="FavoriteVideoController.cs" path="Streamflix/Controllers/FavoriteVideoController.cs" startline="13" type="class"></mcsymbol>).
+  - Subscription management with Stripe integration for payments (`SubscriptionController` class).
+  - Watch history tracking for users (`WatchHistoryController.UpdateProgress()`).
+  - Ability for users to mark videos as favorites (`FavoriteVideosController` class).
 - **Notifications:**
-  - Email notifications for events like registration and password reset using Resend API (inferred from <mcsymbol name="AuthController" filename="AuthController.cs" path="Streamflix/Controllers/AuthController.cs" startline="11" type="class"></mcsymbol> and <mcfile name="appsettings.json" path="Streamflix/appsettings.json"></mcfile>).
+  - Email notifications for events like registration and password reset using Resend API (inferred from `AuthController` class and `appsettings.json`).
 
 ## 🛠️ Tech Stack
 
@@ -46,19 +46,19 @@ Streamflix is a comprehensive backend system for a video streaming platform, des
 - **Email Service:** Resend API
 - **Authentication:** JSON Web Tokens (JWT)
 - **Deployment Automation:** Bash Scripting (`deploy.sh`)
-- **API Documentation:** Swagger/OpenAPI (configured in <mcfile name="Program.cs" path="Streamflix/Program.cs"></mcfile>)
+- **API Documentation:** Swagger/OpenAPI (configured in `Program.cs`)
 
 ## 🏗️ Project Structure
 
 The project follows a standard ASP.NET Core Web API structure:
 
 - `Controllers/`: Contains API controllers for handling HTTP requests.
-- `Data/`: Includes the <mcsymbol name="ApplicationDbContext" filename="ApplicationDbContext.cs" path="Streamflix/Data/ApplicationDbContext.cs" startline="8" type="class"></mcsymbol> for database interactions and migrations.
+- `Data/`: Includes the `ApplicationDbContext` for database interactions and migrations.
 - `DTOs/`: Data Transfer Objects for request/response models.
 - `Migrations/`: Entity Framework Core database migrations.
 - `Middleware/`: Custom middleware (e.g., error handling).
 - `Model/`: Defines the data entities.
-- `Services/`: Business logic and service layer components (e.g., <mcsymbol name="TokenService" filename="TokenService.cs" path="Streamflix/Services/TokenService.cs" startline="8" type="class"></mcsymbol>, <mcsymbol name="EmailService" filename="EmailService.cs" path="Streamflix/Services/EmailService.cs" startline="10" type="class"></mcsymbol>).
+- `Services/`: Business logic and service layer components (e.g., `TokenService`, `EmailService`).
 - `Properties/`: Project settings, including `launchSettings.json`.
 - `deployment/`: Contains all deployment-related scripts and configurations:
   - `docker/`: Dockerfile, docker-compose.yml, Nginx configurations.
@@ -73,13 +73,13 @@ The project follows a standard ASP.NET Core Web API structure:
 The application is designed for deployment on AWS using a combination of Terraform, Docker, and a custom deployment script.
 
 1.  **Infrastructure Provisioning (Terraform):**
-    - The <mcfile name="deployment/terraform/main.tf" path="Streamflix/deployment/terraform/main.tf"></mcfile> script provisions the necessary AWS resources:
+    - The `deployment/terraform/main.tf` script provisions the necessary AWS resources:
       - EC2 instance for hosting the application.
       - RDS PostgreSQL instance for the database.
       - Security Groups for network traffic control.
       - Elastic IP for a static public IP address.
 2.  **Application Deployment (`deploy.sh`):**
-    - The <mcfile name="deployment/deploy.sh" path="Streamflix/deployment/deploy.sh"></mcfile> script automates the entire deployment process:
+    - The `deployment/deploy.sh` script automates the entire deployment process:
       - Prompts for AWS credentials and database password.
       - Initializes and applies Terraform configurations.
       - Retrieves outputs like EC2 public IP and RDS endpoint.
@@ -90,13 +90,13 @@ The application is designed for deployment on AWS using a combination of Terrafo
       - Obtains SSL certificates from Let's Encrypt.
       - Updates `appsettings.json` on the EC2 instance with actual database and AWS credentials.
       - Copies the final Nginx configuration (with SSL) to the EC2 instance.
-      - Builds and starts the application using Docker Compose (<mcfile name="deployment/docker/docker-compose.yml" path="Streamflix/deployment/docker/docker-compose.yml"></mcfile>).
+      - Builds and starts the application using Docker Compose (`deployment/docker/docker-compose.yml`).
 3.  **Containerization (Docker):**
     - The application and its dependencies (like Nginx) are containerized using Docker.
-    - The <mcfile name="deployment/docker/Dockerfile" path="Streamflix/deployment/docker/Dockerfile"></mcfile> defines the build process for the ASP.NET Core application.
-    - <mcfile name="deployment/docker/docker-compose.yml" path="Streamflix/deployment/docker/docker-compose.yml"></mcfile> orchestrates the `api`, `nginx`, and `db` services.
+    - The `deployment/docker/Dockerfile` defines the build process for the ASP.NET Core application.
+    - `deployment/docker/docker-compose.yml` orchestrates the `api`, `nginx`, and `db` services.
 4.  **Reverse Proxy & SSL (Nginx & Certbot):**
-    - Nginx (<mcfile name="deployment/docker/nginx/nginx.conf" path="Streamflix/deployment/docker/nginx/nginx.conf"></mcfile>) acts as a reverse proxy, handling incoming HTTP/HTTPS traffic and forwarding it to the ASP.NET Core application.
+    - Nginx (`deployment/docker/nginx/nginx.conf`) acts as a reverse proxy, handling incoming HTTP/HTTPS traffic and forwarding it to the ASP.NET Core application.
     - It also serves static files and handles SSL termination.
     - Certbot is used to automatically obtain and renew SSL certificates from Let's Encrypt, ensuring secure HTTPS communication.
 
