@@ -273,9 +273,7 @@ namespace Streamflix.Controllers
         [HttpPost("cancel-subscription")]
         public async Task<IActionResult> CancelSubscription([FromBody] UserSubscriptionDto subscriptionDto)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (!int.TryParse(userId, out var uId) || uId != subscriptionDto.UserId)
+            if (subscriptionDto.UserId <= 0)
             {
                 return Unauthorized("You're not authorized to cancel this subscription.");
             }

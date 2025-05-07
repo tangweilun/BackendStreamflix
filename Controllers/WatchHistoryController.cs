@@ -25,9 +25,7 @@ namespace Streamflix.Controllers
         [HttpPost("update-progress")]
         public IActionResult UpdateProgress([FromBody] WatchHistoryDto historyDto)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (!int.TryParse(userId, out var uId) || uId != historyDto.UserId)
+            if (historyDto.UserId <= 0)
             {
                 return Unauthorized("You're not authorized to update this progress.");
             }
